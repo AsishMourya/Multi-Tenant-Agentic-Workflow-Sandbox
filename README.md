@@ -12,18 +12,10 @@ security contracts. Execution plumbing should be reused from one selected backen
 with E2B Runtime/Embed evaluated first on Linux/KVM and OpenSandbox plus Docker/gVisor
 as the fallback.
 
-## Requirements
-
-The original source report is [DAT_ProjectV.pdf](DAT_ProjectV.pdf). The concise
-working requirements are in [SRS.md](SRS.md). In short: build the
-first complete two-tenant/two-exercise flow before adding exercises, clusters, warm
-pools, GPU work, public deployment, or model training. Full VM restore is optional
-only if the mentor approves the narrower, versioned application-state contract.
-
 ## Current Status
 
 The local CLI/API flow, scoped broker, review records, five attack-contract cases,
-and `inventory-safe-point-1` checkpoint survive the Week-2 contract tests. The
+and `inventory-safe-point-1` checkpoint survive the contract tests. The
 current Windows/WSL code uses trusted reference fixtures; it is not yet an
 arbitrary-code sandbox. Backend integration, resource enforcement, authenticated
 API transport, queueing, cleanup, and real judge calibration remain next.
