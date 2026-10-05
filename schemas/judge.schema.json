@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:w1:judge:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "criteria": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "correctness": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "level": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          },
+          "required": [
+            "level",
+            "evidence",
+            "reason"
+          ]
+        },
+        "clarity": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "level": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          },
+          "required": [
+            "level",
+            "evidence",
+            "reason"
+          ]
+        }
+      },
+      "required": [
+        "correctness",
+        "clarity"
+      ]
+    },
+    "conflicts_with_tests": {
+      "type": "boolean"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    }
+  },
+  "required": [
+    "criteria",
+    "conflicts_with_tests",
+    "confidence"
+  ]
+}

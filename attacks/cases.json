@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0.0",
+  "cases": [
+    {
+      "id": "ISO-01",
+      "category": "isolation",
+      "version": "1.0.0",
+      "runner": "scripts/attack_cases.py",
+      "expected": "foreign tenant denied; session unchanged",
+      "limits": "control API, not VM filesystem"
+    },
+    {
+      "id": "RES-01",
+      "category": "resource_exhaustion",
+      "version": "1.0.0",
+      "runner": "scripts/attack_cases.py",
+      "expected": "one CPU-loop child killed after 0.2-second timeout",
+      "limits": "one synthetic child, no fork bomb"
+    },
+    {
+      "id": "NET-01",
+      "category": "network_denial",
+      "version": "1.0.0",
+      "runner": "scripts/attack_cases.py",
+      "expected": "general fetch denied; named lookup succeeds",
+      "limits": "no socket or external traffic attempted"
+    },
+    {
+      "id": "SEC-01",
+      "category": "secret_protection",
+      "version": "1.0.0",
+      "runner": "scripts/attack_cases.py",
+      "expected": "dummy absent; revoked replay denied",
+      "limits": "dummy fixture only"
+    },
+    {
+      "id": "GRD-01",
+      "category": "grader_injection",
+      "version": "1.0.0",
+      "runner": "scripts/attack_cases.py",
+      "expected": "hard failure remains failure despite score-changing text",
+      "limits": "no real model claim"
+    }
+  ]
+}

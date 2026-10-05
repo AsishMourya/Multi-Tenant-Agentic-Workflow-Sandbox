@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:w1:grade-record:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "grade_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "tenant": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "session": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "submission_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "exercise_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "test_suite_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "rubric_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "model_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "model_digest": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "prompt_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "runtime_image_digest": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "deterministic_results": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "mandatory_invariants_ok": {
+      "type": "boolean"
+    },
+    "judgments": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "score": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 100
+    },
+    "status": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "FAIL_INVARIANT",
+        "POLICY_FAILURE",
+        "RETRY_ERROR",
+        "REVIEW"
+      ]
+    },
+    "review_history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "reviewer": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "at_utc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "reviewer",
+          "at_utc",
+          "decision",
+          "reason"
+        ]
+      }
+    },
+    "metrics": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "grade_id",
+    "tenant",
+    "session",
+    "at_utc",
+    "submission_sha256",
+    "exercise_version",
+    "test_suite_version",
+    "rubric_version",
+    "model_id",
+    "model_digest",
+    "prompt_version",
+    "runtime_image_digest",
+    "deterministic_results",
+    "mandatory_invariants_ok",
+    "judgments",
+    "score",
+    "status",
+    "review_history",
+    "metrics"
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:w1:exercise:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "exercise_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "exercise_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "mode": {
+      "enum": [
+        "python",
+        "workflow"
+      ]
+    },
+    "runtime": {
+      "type": "object"
+    },
+    "task": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "input_schema": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "output_schema": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "hidden_tests": {
+      "type": "object"
+    },
+    "mandatory_invariants": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2000
+      },
+      "minItems": 1
+    },
+    "deterministic_weights": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "rubric": {
+      "type": "object"
+    },
+    "grading": {
+      "type": "object"
+    },
+    "submission_bounds": {
+      "type": "object"
+    },
+    "versions": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "exercise_id",
+    "exercise_version",
+    "mode",
+    "runtime",
+    "task",
+    "input_schema",
+    "output_schema",
+    "reference",
+    "hidden_tests",
+    "mandatory_invariants",
+    "deterministic_weights",
+    "rubric",
+    "grading",
+    "submission_bounds",
+    "versions"
+  ]
+}

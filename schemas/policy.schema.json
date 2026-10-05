@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:w1:policy:1.0.0",
+  "type": "object",
+  "required": ["schema_version", "status", "execution", "admission", "network", "broker", "snapshot", "grading"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "design-defaults-not-all-enforced"},
+    "execution": {"type": "object", "required": ["vcpu_count", "memory_mib", "wall_seconds", "process_count", "writable_disk_mib", "output_bytes"], "additionalProperties": {"type": "integer", "minimum": 1}},
+    "admission": {"type": "object", "required": ["global_active", "tenant_active", "queue_capacity"], "additionalProperties": {"type": "integer", "minimum": 1}},
+    "network": {"type": "object", "required": ["default", "ipv6", "allowed_named_tools", "arbitrary_urls"], "properties": {"default": {"const": "deny"}, "ipv6": {"const": "deny"}, "arbitrary_urls": {"const": false}, "allowed_named_tools": {"type": "array", "items": {"const": "inventory.lookup"}}}, "additionalProperties": false},
+    "broker": {"type": "object", "required": ["capability_ttl_seconds", "maximum_ttl_seconds", "session_call_budget"], "additionalProperties": {"type": "integer", "minimum": 1}},
+    "snapshot": {"type": "object", "required": ["primary", "fallback", "fallback_requires_mentor_approval", "same_host", "pinned_runtime"], "properties": {"primary": {"const": "full-microvm"}, "fallback": {"const": "declared-safe-point-json"}, "fallback_requires_mentor_approval": {"const": true}, "same_host": {"const": true}, "pinned_runtime": {"const": true}}, "additionalProperties": false},
+    "grading": {"type": "object", "required": ["deterministic_weight", "semantic_weight", "pass_threshold", "review_margin", "criterion_disagreement_limit"], "additionalProperties": {"type": "number", "minimum": 0}}
+  }
+}

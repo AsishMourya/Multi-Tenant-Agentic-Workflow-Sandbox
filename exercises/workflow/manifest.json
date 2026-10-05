@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.0.0",
+  "exercise_id": "inventory",
+  "exercise_version": "1.0.0",
+  "mode": "workflow",
+  "runtime": {
+    "python": "3.13.2 (Windows reference validation); Linux guest records its own version",
+    "langgraph": "1.2.2",
+    "image_id": "w1-trusted-fixture-only"
+  },
+  "task": "Validate inventory request, call authorized mock lookup, pause after lookup, resume and explain whether requested quantity is available.",
+  "input_schema": "../../schemas/workflow-input.schema.json",
+  "output_schema": "../../schemas/workflow-output.schema.json",
+  "reference": "reference.py",
+  "hidden_tests": {
+    "deployment": "trusted grader store only; never student image",
+    "author_source": "../../tests/test_workflow.py",
+    "cases": [
+      "valid accept",
+      "insufficient stock",
+      "invalid no calls",
+      "pause next node",
+      "resume no duplicate lookup"
+    ]
+  },
+  "mandatory_invariants": [
+    "valid bounded input schema",
+    "result matches trusted expected output",
+    "no policy violation",
+    "no student-reported test result trusted",
+    "lookup occurs exactly once for valid input",
+    "checkpoint after lookup; resume schedules explanation",
+    "invalid input causes zero tool calls",
+    "thread identity bound to authenticated tenant/session"
+  ],
+  "deterministic_weights": {
+    "accepted_result": 0.4,
+    "authorized_tool_trace": 0.3,
+    "checkpoint_continuity": 0.3
+  },
+  "rubric": {
+    "version": "1.0.0",
+    "weights": {
+      "correctness": 0.5,
+      "clarity": 0.5
+    },
+    "criteria": {
+      "correctness": {
+        "0": "Absent or contradicts observed result",
+        "1": "Major errors in reasoning or unsupported tool claim",
+        "2": "Partly correct with one material omission",
+        "3": "Correct reasoning with minor omission",
+        "4": "Correct, complete and directly supported by observed evidence"
+      },
+      "clarity": {
+        "0": "No interpretable explanation",
+        "1": "Mostly unclear or irrelevant",
+        "2": "Understandable but units/steps ambiguous",
+        "3": "Clear explanation with one minor ambiguity",
+        "4": "Concise, explicit units and traceable steps"
+      }
+    }
+  },
+  "grading": {
+    "formula": "100*(0.6*D+0.4*S)",
+    "pass_threshold": 60,
+    "invariant_failure": "FAIL_INVARIANT",
+    "infrastructure_error": "RETRY_ERROR",
+    "policy_failure": "POLICY_FAILURE",
+    "judgments_required": 2,
+    "escalate": [
+      "invalid/missing judge JSON",
+      "any criterion difference > 1",
+      "score within 5 points of 60",
+      "conflict with test evidence"
+    ]
+  },
+  "submission_bounds": {
+    "explanation_characters": 8000,
+    "output_bytes": 65536,
+    "wall_seconds": 30
+  },
+  "versions": {
+    "test_suite": "1.0.0",
+    "rubric": "1.0.0",
+    "prompt": "w1-rubric-1",
+    "model": "UNCONFIGURED"
+  }
+}

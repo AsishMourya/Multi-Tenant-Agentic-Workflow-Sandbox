@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:w1:python-output:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "by_sku": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "apple": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000000000
+        },
+        "pear": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000000000
+        }
+      }
+    },
+    "total_cents": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000000000
+    }
+  },
+  "required": [
+    "by_sku",
+    "total_cents"
+  ]
+}

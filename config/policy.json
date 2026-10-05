@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0.0",
+  "status": "design-defaults-not-all-enforced",
+  "execution": {"vcpu_count": 1, "memory_mib": 128, "wall_seconds": 30, "process_count": 16, "writable_disk_mib": 32, "output_bytes": 65536},
+  "admission": {"global_active": 2, "tenant_active": 1, "queue_capacity": 10},
+  "network": {"default": "deny", "ipv6": "deny", "allowed_named_tools": ["inventory.lookup"], "arbitrary_urls": false},
+  "broker": {"capability_ttl_seconds": 60, "maximum_ttl_seconds": 300, "session_call_budget": 20},
+  "snapshot": {"primary": "full-microvm", "fallback": "declared-safe-point-json", "fallback_requires_mentor_approval": true, "same_host": true, "pinned_runtime": true},
+  "grading": {"deterministic_weight": 0.6, "semantic_weight": 0.4, "pass_threshold": 60, "review_margin": 5, "criterion_disagreement_limit": 1}
+}

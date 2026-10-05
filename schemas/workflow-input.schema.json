@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:w1:workflow-input:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "sku": {
+      "type": "string",
+      "enum": [
+        "apple",
+        "pear"
+      ]
+    },
+    "quantity": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    }
+  },
+  "required": [
+    "sku",
+    "quantity"
+  ]
+}
