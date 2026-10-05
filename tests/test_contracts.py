@@ -31,6 +31,15 @@ class Contracts(unittest.TestCase):
     def test_revoke(self):
         self.call(); self.b.revoke('s')
         with self.assertRaises(PermissionError): self.call()
+
+    def test_effect_deduplicates_after_capability_renewal(self):
+        self.call()
+        self.b.revoke('s')
+        self.b.db.execute('UPDATE sessions SET state=? WHERE id=?', ('running', 's'))
+        renewed = self.b.issue('a', 's', 'inventory-v1')
+        self.assertEqual(self.b.call(self.principal, renewed, 'inventory.lookup', {'sku': 'apple'}, 'r1'),
+                         {'sku': 'apple', 'available': 7})
+        self.assertEqual(self.b.db.execute('SELECT count(*) FROM calls').fetchone()[0], 1)
     def test_tamper(self):
         token=copy.deepcopy(self.token); token['cap']['ops'].append('fetch')
         with self.assertRaises(PermissionError): self.call(token=token)

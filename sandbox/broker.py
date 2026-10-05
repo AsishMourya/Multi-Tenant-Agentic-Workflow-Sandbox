@@ -18,8 +18,8 @@ class Broker:
         self.db = sqlite3.connect(path, isolation_level=None)
         self.db.executescript('''
         CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY,tenant TEXT,exercise TEXT,epoch INTEGER,state TEXT);
-        CREATE TABLE IF NOT EXISTS calls(session TEXT,epoch INTEGER,request TEXT,digest TEXT,result TEXT,
-           PRIMARY KEY(session,epoch,request));
+          CREATE TABLE IF NOT EXISTS calls(session TEXT,epoch INTEGER,request TEXT,digest TEXT,result TEXT,
+              PRIMARY KEY(session,request));
         CREATE TABLE IF NOT EXISTS audit(at TEXT,tenant TEXT,session TEXT,request TEXT,operation TEXT,outcome TEXT,reason TEXT);
         ''')
 
@@ -58,7 +58,7 @@ class Broker:
             if not isinstance(args,dict) or set(args) != {'sku'} or args['sku'] not in {'apple','pear'}: raise PermissionError('arguments')
             if not isinstance(request,str) or not 1 <= len(request) <= 64: raise PermissionError('request ID')
             digest = hashlib.sha256(canonical([operation,args]).encode()).hexdigest()
-            old = self.db.execute('SELECT digest,result FROM calls WHERE session=? AND epoch=? AND request=?',(session,cap['epoch'],request)).fetchone()
+            old = self.db.execute('SELECT digest,result FROM calls WHERE session=? AND request=?',(session,request)).fetchone()
             if old:
                 if old[0] != digest: raise PermissionError('replay conflict')
                 outcome, reason = 'allowed','cached retry'
