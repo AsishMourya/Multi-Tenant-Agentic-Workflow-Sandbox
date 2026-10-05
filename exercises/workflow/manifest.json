@@ -62,7 +62,12 @@
     }
   },
   "grading": {
+    "protocol_version": "exercise-grade-1.0.0",
     "formula": "100*(0.6*D+0.4*S)",
+    "deterministic_normalization": "D is the weighted passed subtest weight divided by total fixed subtest weight",
+    "semantic_normalization": "S is the weighted mean applicable criterion level divided by 4; NOT_APPLICABLE criteria are excluded from the denominator",
+    "missing_or_abstained_criteria": "ABSTAIN, missing, malformed, or inconsistent applicability produces REVIEW; all criteria NOT_APPLICABLE produces REVIEW",
+    "final_precedence": ["RETRY_ERROR", "POLICY_FAILURE", "FAIL_INVARIANT", "REVIEW", "PASS_or_FAIL"],
     "pass_threshold": 60,
     "invariant_failure": "FAIL_INVARIANT",
     "infrastructure_error": "RETRY_ERROR",

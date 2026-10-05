@@ -1,0 +1,60 @@
+{
+  "schema_version": "evaluation-protocol-1.0.0",
+  "status": "development-protocol; labels pending",
+  "freeze_deadline_ist": "2026-10-09T23:59:00+05:30",
+  "exercise_grade_formula": "100*(0.6*D+0.4*S)",
+  "exercise_grade_weights_are_distinct_from_course_rubric": true,
+  "normalization": {
+    "D": "weighted passed deterministic subtest weight / total fixed deterministic weight",
+    "S": "weighted mean of applicable 0-4 criterion levels / 4",
+    "not_applicable": "exclude from the semantic denominator only when both judgments mark the criterion NOT_APPLICABLE",
+    "abstention_or_missing": "REVIEW; never impute a score",
+    "all_not_applicable": "REVIEW; no semantic evidence"
+  },
+  "precedence": [
+    "RETRY_ERROR when infrastructure is unavailable or the run is inconclusive",
+    "POLICY_FAILURE when an enforced security policy is violated",
+    "FAIL_INVARIANT when any mandatory exercise gate fails",
+    "REVIEW when judge output is invalid, abstained, conflicting, borderline, or evidence-conflicting",
+    "PASS or FAIL only after the preceding gates pass"
+  ],
+  "judge_protocol": {
+    "development_baseline": "two independent judge calls; preserve both raw outputs",
+    "adaptive_comparison": "one initial call, second call only for predeclared ambiguous/invalid/conflicting cases",
+    "adaptive_never_bypasses_mandatory_gates": true,
+    "correlation_warning": "judge agreement is not correctness evidence; automatic error must be measured against adjudicated labels",
+    "versions_required": ["model", "quantization", "runtime", "prompt", "rubric", "protocol"]
+  },
+  "dataset_target": {
+    "exercise_count": 6,
+    "submission_count": 60,
+    "calibration_count": 20,
+    "held_out_count": 40,
+    "split_unit": "submission family; no family may cross calibration and held-out sets",
+    "labels": "two independent human ratings retained unchanged, plus separate adjudicated label",
+    "status": "not yet collected; do not fabricate labels or split assignments"
+  },
+  "metrics": {
+    "repeats_per_pipeline": 3,
+    "uncertainty": "95% bootstrap confidence interval over submission-level outcomes",
+    "required": [
+      "false_acceptance_rate = incorrect automatic PASS / all incorrect labelled submissions",
+      "false_rejection_rate = incorrect automatic FAIL / all correct labelled submissions",
+      "semantic_mae = mean absolute level error over applicable criteria",
+      "human_human_agreement = agreement before adjudication",
+      "automatic_coverage = automatic final decisions / all submissions",
+      "review_rate = human review decisions / all submissions",
+      "judge_calls_per_submission",
+      "end_to_end_latency_ms",
+      "inference_memory_mb"
+    ],
+    "denominator_rule": "report numerator and denominator for every rate; exclude infrastructure RETRY_ERROR only when separately reported"
+  },
+  "local_judge_feasibility": {
+    "required_now": true,
+    "minimum": "one real exercise, one real local model, recorded cold/warm time, peak memory, JSON validity, model/runtime/quantization",
+    "capacity_reservation": "judge memory is reserved separately from execution workers",
+    "mock_judge": "integration-only; not evidence of M7 completion",
+    "gpu_required": false
+  }
+}

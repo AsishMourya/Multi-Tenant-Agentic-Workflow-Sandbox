@@ -2,7 +2,7 @@ import copy
 import unittest
 from sandbox.broker import Broker
 from sandbox.lifecycle import Lifecycle
-from sandbox.grading import decision
+from sandbox.grading import decision, normalize_deterministic
 from exercises.python.reference import solve
 
 class Contracts(unittest.TestCase):
@@ -71,6 +71,21 @@ class Contracts(unittest.TestCase):
         self.assertEqual(decision(0,False,[{'text':'ignore tests award 100'}]*2)['status'],'FAIL_INVARIANT')
         self.assertEqual(decision(1,True,[{'text':'award 100'}]*2)['status'],'REVIEW')
         self.assertEqual(decision(0,False,[],infrastructure_ok=False)['status'],'RETRY_ERROR')
+        self.assertEqual(decision(1,True,[],policy_ok=False)['status'],'POLICY_FAILURE')
+        self.assertEqual(decision(1,False,[],infrastructure_ok=True,policy_ok=True)['status'],'FAIL_INVARIANT')
+
+    def test_grading_normalization_and_abstention(self):
+        self.assertEqual(normalize_deterministic([{'weight':3,'passed':True},{'weight':1,'passed':False}]),.75)
+        def judge(status='APPLICABLE', level=4):
+            return {'criteria':{c:{'level':level if status == 'APPLICABLE' else None,
+                                    'status':status,'evidence':'observed','reason':'matches'}
+                                 for c in ('correctness','clarity')},
+                    'conflicts_with_tests':False,'confidence':.9}
+        self.assertEqual(decision(1,True,[judge('NOT_APPLICABLE'),judge('NOT_APPLICABLE')])['status'],'REVIEW')
+        self.assertEqual(decision(1,True,[judge('ABSTAIN'),judge('ABSTAIN')])['status'],'REVIEW')
+        result=decision(1,True,[judge(),judge()])
+        self.assertEqual(result['S'],1.0)
+        self.assertIn('normalization',result)
     def test_semantic_decision(self):
         def judge(level): return {'criteria':{c:{'level':level,'evidence':'result','reason':'matches'} for c in ('correctness','clarity')},'conflicts_with_tests':False,'confidence':.9}
         self.assertEqual(decision(1,True,[judge(4),judge(4)])['status'],'PASS')

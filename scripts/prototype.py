@@ -8,7 +8,7 @@ from sandbox.platform import Platform
 
 
 def judge(level=4):
-    return {'criteria': {name: {'level': level, 'evidence': 'observed output',
+    return {'criteria': {name: {'level': level, 'status': 'APPLICABLE', 'evidence': 'observed output',
                                'reason': 'matches the bounded exercise evidence'}
                          for name in ('correctness', 'clarity')},
             'conflicts_with_tests': False, 'confidence': .9}

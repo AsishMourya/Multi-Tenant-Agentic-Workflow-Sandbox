@@ -13,9 +13,19 @@
           "additionalProperties": false,
           "properties": {
             "level": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "minimum": 0,
               "maximum": 4
+            },
+            "status": {
+              "enum": [
+                "APPLICABLE",
+                "NOT_APPLICABLE",
+                "ABSTAIN"
+              ]
             },
             "evidence": {
               "type": "string",
@@ -30,6 +40,7 @@
           },
           "required": [
             "level",
+            "status",
             "evidence",
             "reason"
           ]
@@ -39,9 +50,19 @@
           "additionalProperties": false,
           "properties": {
             "level": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "minimum": 0,
               "maximum": 4
+            },
+            "status": {
+              "enum": [
+                "APPLICABLE",
+                "NOT_APPLICABLE",
+                "ABSTAIN"
+              ]
             },
             "evidence": {
               "type": "string",
@@ -56,6 +77,7 @@
           },
           "required": [
             "level",
+            "status",
             "evidence",
             "reason"
           ]
