@@ -1,4 +1,6 @@
 import copy
+import tempfile
+import threading
 import unittest
 from sandbox.broker import Broker
 from sandbox.lifecycle import Lifecycle
@@ -66,6 +68,42 @@ class Contracts(unittest.TestCase):
         l.transition('a','s','completed','done',5)
         l.transition('a','s','deleted','delete',6)
         with self.assertRaises(ValueError): l.transition('a','s','running','again',7)
+
+    def test_concurrent_restore_admits_one(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = f'{directory}/lifecycle.sqlite3'
+            setup = Lifecycle(path)
+            setup.create('a', 's')
+            setup.transition('a', 's', 'running', 'start', 0)
+            setup.transition('a', 's', 'checkpointing', 'pause', 1)
+            setup.transition('a', 's', 'paused', 'save', 2, durable=True)
+            setup.db.close()
+            barrier = threading.Barrier(2)
+            results = []
+            mutex = threading.Lock()
+
+            def restore(key):
+                controller = Lifecycle(path)
+                try:
+                    barrier.wait(timeout=5)
+                    try:
+                        controller.transition('a', 's', 'restoring', key, 3)
+                        result = 'admitted'
+                    except ValueError:
+                        result = 'rejected'
+                    with mutex:
+                        results.append(result)
+                finally:
+                    controller.db.close()
+
+            threads = [threading.Thread(target=restore, args=(key,)) for key in ('resume-a', 'resume-b')]
+            for thread in threads: thread.start()
+            for thread in threads: thread.join(timeout=10)
+            self.assertFalse(any(thread.is_alive() for thread in threads))
+            self.assertCountEqual(results, ['admitted', 'rejected'])
+            verify = Lifecycle(path)
+            self.assertEqual(verify.get('a', 's'), {'state': 'restoring', 'version': 4})
+            verify.db.close()
     def test_python_hidden(self):
         self.assertEqual(solve([]),{'by_sku':{},'total_cents':0})
         self.assertEqual(solve([{'sku':'pear','quantity':2,'unit_cents':125},{'sku':'pear','quantity':3,'unit_cents':125}])['total_cents'],625)

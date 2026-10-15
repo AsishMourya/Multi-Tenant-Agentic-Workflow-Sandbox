@@ -122,12 +122,15 @@ class Platform:
         if record['exercise'] != 'inventory':
             raise ValueError('only inventory supports this checkpoint')
         current = self.lifecycle.get(tenant, session)
+        if current['state'] != 'paused':
+            raise ValueError('session is not paused')
+        # Validate the checkpoint before changing lifecycle or broker state.
+        restored = self.state.load(tenant, session, 'inventory')
         self.lifecycle.transition(tenant, session, 'restoring', 'resume', current['version'])
         self.broker.db.execute('UPDATE sessions SET state=? WHERE id=?', ('running', session))
         fresh_token = self.broker.issue(tenant, session, 'inventory')
         current = self.lifecycle.get(tenant, session)
         self.lifecycle.transition(tenant, session, 'running', 'restored', current['version'])
-        restored = self.state.load(tenant, session, 'inventory')
         accepted = restored['quantity'] <= restored['available']
         return ({'accepted': accepted,
                  'explanation': f"Requested {restored['quantity']}; available {restored['available']}; accepted {accepted}."},

@@ -28,7 +28,7 @@ def main(output):
                 {'sku': 'apple', 'quantity': 3, 'unit_cents': 125}], [judge(), judge()]),
             'tenant_b_inventory': platform.submit('tenant-b', second,
                                                     {'sku': 'apple', 'quantity': 5}, [judge(), judge()]),
-            'claims': ['two authenticated tenants', 'two supported exercises',
+            'claims': ['two synthetic tenant identities', 'two supported exercises',
                        'application-state checkpoint after broker effect',
                        'review records are retained'],
         }

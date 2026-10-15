@@ -22,7 +22,8 @@ class StateStore:
         if exercise != 'inventory':
             raise ValueError('unsupported checkpoint exercise')
         required = {'sku', 'quantity', 'available'}
-        if set(state) != required or state['sku'] not in {'apple', 'pear'}:
+        if (not isinstance(state, dict) or set(state) != required
+                or type(state['sku']) is not str or state['sku'] not in {'apple', 'pear'}):
             raise ValueError('invalid checkpoint state')
         if type(state['quantity']) is not int or not 0 <= state['quantity'] <= 100:
             raise ValueError('invalid checkpoint quantity')
@@ -49,11 +50,15 @@ class StateStore:
             record = json.loads(path.read_text(encoding='utf-8'))
         except (FileNotFoundError, json.JSONDecodeError) as exc:
             raise ValueError('checkpoint unavailable') from exc
+        if not isinstance(record, dict):
+            raise ValueError('invalid checkpoint record')
         if (record.get('schema'), record.get('tenant'), record.get('session'),
                 record.get('exercise')) != (SCHEMA, tenant, session, exercise):
             raise ValueError('checkpoint ownership or version mismatch')
         state = record.get('state')
-        if not isinstance(state, dict):
+        if (not isinstance(state, dict) or set(state) != {'sku', 'quantity', 'available'}
+                or type(state['sku']) is not str or state['sku'] not in {'apple', 'pear'}
+                or type(state['quantity']) is not int or not 0 <= state['quantity'] <= 100
+                or type(state['available']) is not int or not 0 <= state['available'] <= 100):
             raise ValueError('invalid checkpoint state')
-        self.save(tenant, session, exercise, state)
         return state

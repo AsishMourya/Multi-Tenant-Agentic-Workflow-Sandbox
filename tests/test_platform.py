@@ -66,6 +66,20 @@ class PlatformFlow(unittest.TestCase):
         with self.assertRaises(ValueError):
             store.load('tenant-b', 's1', 'inventory')
 
+    def test_bad_checkpoint_does_not_renew_access(self):
+        import json
+        session = self.platform.create_session('tenant-b', 'inventory')
+        self.platform.pause('tenant-b', session, {'sku': 'pear', 'quantity': 2})
+        checkpoint = Path(self.tmp.name) / 'platform' / 'checkpoints' / f'{session}.json'
+        data = json.loads(checkpoint.read_text(encoding='utf-8'))
+        data['state']['quantity'] = -1
+        checkpoint.write_text(json.dumps(data), encoding='utf-8')
+        with self.assertRaises(ValueError):
+            self.platform.resume('tenant-b', session)
+        self.assertEqual(self.platform.lifecycle.get('tenant-b', session)['state'], 'paused')
+        self.assertEqual(self.platform.broker.db.execute(
+            'SELECT state FROM sessions WHERE id=?', (session,)).fetchone()[0], 'paused')
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -80,3 +80,11 @@ store.publish('s1','tenant-a','session-a',{}, {},disk,capture,crash)
         if os.name!='nt':
             bundle=self.store.path('s1'); bundle.chmod(0o700); memory=bundle/'memory.mem'; memory.unlink(); memory.symlink_to(self.disk)
             with self.assertRaises(SnapshotError): self.validate()
+
+    def test_unexpected_artifact_is_rejected(self):
+        self.publish()
+        bundle = self.store.path('s1')
+        bundle.chmod(0o700)
+        (bundle / '..evil').write_text('unexpected', encoding='utf-8')
+        with self.assertRaises(SnapshotError):
+            self.validate()
