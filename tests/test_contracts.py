@@ -37,7 +37,9 @@ class Contracts(unittest.TestCase):
     def test_effect_deduplicates_after_capability_renewal(self):
         self.call()
         self.b.revoke('s')
-        self.b.db.execute('UPDATE sessions SET state=? WHERE id=?', ('running', 's'))
+        with self.assertRaises(PermissionError):
+            self.b.resume('b', 's', 'inventory-v1')
+        self.b.resume('a', 's', 'inventory-v1')
         renewed = self.b.issue('a', 's', 'inventory-v1')
         self.assertEqual(self.b.call(self.principal, renewed, 'inventory.lookup', {'sku': 'apple'}, 'r1'),
                          {'sku': 'apple', 'available': 7})

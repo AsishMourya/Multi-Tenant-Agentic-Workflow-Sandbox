@@ -1,0 +1,11 @@
+{
+  "schema_version": "firecracker-backend-lock-1",
+  "image_name": "ubuntu-langgraph-2026-10-16-v2.ext4",
+  "image_sha256": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+  "firecracker_version": "v1.17.0",
+  "firecracker_sha256": "99ad0f5cd0514a88aad0e9ae8cfdb3cc3b4ab9d190e1194602406c786b5de7a5",
+  "kernel_sha256": "0001439e46db95c774ee4c01a51149589a237cac0bf920a266072d10e630e04c",
+  "guest_python": "3.12",
+  "guest_langgraph": "1.2.2",
+  "requirements_lock_sha256": "a31f19d7cd14f19866cd0a09a39bd46a7dc10acf3a5ab7b70dfcd45232a59b8d"
+}

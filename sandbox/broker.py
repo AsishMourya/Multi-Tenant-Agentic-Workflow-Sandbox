@@ -29,6 +29,21 @@ class Broker:
     def revoke(self, session, state='paused'):
         self.db.execute('UPDATE sessions SET epoch=epoch+1,state=? WHERE id=?',(state,session))
 
+    def resume(self, tenant, session, exercise):
+        """Re-enable a paused scope after the controller has validated restore state."""
+        self.db.execute('BEGIN IMMEDIATE')
+        try:
+            row = self.db.execute('SELECT tenant,exercise,state FROM sessions WHERE id=?',
+                                  (session,)).fetchone()
+            if row != (tenant, exercise, 'paused'):
+                raise PermissionError('session unavailable for renewal')
+            self.db.execute('UPDATE sessions SET state=? WHERE id=?', ('running', session))
+            self.db.execute('COMMIT')
+        except Exception:
+            if self.db.in_transaction:
+                self.db.execute('ROLLBACK')
+            raise
+
     def issue(self, tenant, session, exercise, ttl=60):
         row = self.db.execute('SELECT tenant,exercise,epoch,state FROM sessions WHERE id=?',(session,)).fetchone()
         if not row or (row[0],row[1],row[3]) != (tenant,exercise,'running'): raise PermissionError('scope')
