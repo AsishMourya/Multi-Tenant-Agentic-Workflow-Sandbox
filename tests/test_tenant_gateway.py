@@ -11,12 +11,15 @@ class TenantGatewayTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             platform = Platform(Path(root) / 'platform')
             gateway = TenantGateway(platform, {'tenant-a': 'a' * 32,
-                                               'tenant-b': 'b' * 32})
+                                               'tenant-b': 'b' * 32,
+                                               'tenant-c': 'c' * 32})
             try:
                 session = gateway.create('a' * 32, 'orders-cents')
                 self.assertEqual(gateway.status('a' * 32, session)['state'], 'running')
                 with self.assertRaises(PermissionError):
                     gateway.status('b' * 32, session)
+                other = gateway.create('c' * 32, 'orders-cents')
+                self.assertTrue(other.startswith('tenant-c-'))
                 with self.assertRaises(PermissionError):
                     gateway.status('wrong', session)
                 with self.assertRaises(ValueError):

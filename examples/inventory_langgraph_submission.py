@@ -32,4 +32,6 @@ graph.add_edge(START, 'inventory')
 graph.add_edge('inventory', 'explain')
 graph.add_edge('explain', END)
 result = graph.compile().invoke(json.load(sys.stdin))
-print(json.dumps({'accepted': result['accepted'], 'explanation': result['explanation']}))
+print(json.dumps({'sku': result['sku'], 'quantity': result['quantity'],
+                  'available': result['available'], 'accepted': result['accepted'],
+                  'explanation': result['explanation']}))

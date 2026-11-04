@@ -18,7 +18,7 @@ from sandbox.vm_snapshot import (acquire_resume_lease, release_resume_lease,
 
 
 DEFAULT_POLICY = {
-    'vcpu_count': 1, 'mem_size_mib': 512, 'cpu_seconds': 5,
+    'vcpu_count': 1, 'mem_size_mib': 512, 'cpu_seconds': 15,
     'address_bytes': 256 * 1024 * 1024, 'processes': 16,
     'output_bytes': 65536, 'wall_seconds': 15,
     'snapshot_wall_seconds': 120,
@@ -38,7 +38,7 @@ class FirecrackerBackend:
         self.base_disk = self.root / image
         self.policy = dict(DEFAULT_POLICY if policy is None else policy)
         limits = {'vcpu_count': (1, 2), 'mem_size_mib': (128, 512),
-                  'cpu_seconds': (1, 5), 'address_bytes': (64 * 1024 * 1024,
+                  'cpu_seconds': (1, 30), 'address_bytes': (64 * 1024 * 1024,
                                                         512 * 1024 * 1024),
                   'processes': (1, 16), 'output_bytes': (1024, 65536),
                   'wall_seconds': (1, 30), 'snapshot_wall_seconds': (30, 180)}
@@ -79,19 +79,22 @@ class FirecrackerBackend:
         subprocess.run(['mount', '-o', 'loop', str(disk), str(mount)], check=True)
         try:
             (mount / 'tmp').chmod(0o1777)
-            submission = mount / 'tmp' / 'dat_submission.py'
+            guest_lib = mount / 'opt' / 'dat'
+            guest_lib.mkdir(parents=True, exist_ok=True)
+            guest_lib.chmod(0o755)
+            submission = guest_lib / 'dat_submission.py'
             submission.write_text(source, encoding='utf-8')
             submission.chmod(0o644)
             runner = mount / 'root' / 'dat_runner.py'
             shutil.copyfile(Path(__file__).with_name('guest_runtime.py'), runner)
             runner.chmod(0o600)
-            broker_client = mount / 'tmp' / 'guest_broker_client.py'
+            broker_client = guest_lib / 'guest_broker_client.py'
             shutil.copyfile(Path(__file__).with_name('guest_broker_client.py'), broker_client)
             broker_client.chmod(0o644)
-            checkpoint_client = mount / 'tmp' / 'guest_checkpoint_client.py'
-            shutil.copyfile(Path(__file__).with_name('guest_checkpoint_client.py'),
-                            checkpoint_client)
-            checkpoint_client.chmod(0o644)
+            pause_client = guest_lib / 'guest_pause_client.py'
+            shutil.copyfile(Path(__file__).with_name('guest_pause_client.py'),
+                            pause_client)
+            pause_client.chmod(0o644)
             input_file = mount / 'root' / 'dat_input.json'
             input_file.write_text(json.dumps(payload, allow_nan=False), encoding='utf-8')
             input_file.chmod(0o600)

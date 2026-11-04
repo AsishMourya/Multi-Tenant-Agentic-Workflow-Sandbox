@@ -1,8 +1,8 @@
-"""Declared safe point for supported full-VM pause and resume cases."""
+"""Learner-visible safe-point client for a supported full-VM pause/resume."""
 import socket
 
 
-def checkpoint():
+def pause_and_resume():
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
         connection.settimeout(120)
         connection.connect('/tmp/dat-checkpoint.sock')
@@ -14,4 +14,4 @@ def checkpoint():
                 break
             response.extend(chunk)
         if bytes(response).split(b'\n', 1)[0] != b'continue':
-            raise RuntimeError('checkpoint continuation denied')
+            raise RuntimeError('pause continuation denied')

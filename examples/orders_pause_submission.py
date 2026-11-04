@@ -1,15 +1,15 @@
-"""Standalone Python exercise with a declared full-VM checkpoint."""
+"""Standalone Python exercise with a declared full-VM pause and resume."""
 import json
 import sys
 from pathlib import Path
 
-from guest_checkpoint_client import checkpoint
+from guest_pause_client import pause_and_resume
 
 
 orders = json.load(sys.stdin)
 counter = 77
 Path('/tmp/dat-counter.txt').write_text(str(counter), encoding='utf-8')
-checkpoint()
+pause_and_resume()
 counter += 1
 restored = Path('/tmp/dat-counter.txt').read_text(encoding='utf-8')
 print(json.dumps({'counter_after_restore': counter, 'disk_value_after_restore': restored}),

@@ -106,6 +106,33 @@ class Contracts(unittest.TestCase):
             verify = Lifecycle(path)
             self.assertEqual(verify.get('a', 's'), {'state': 'restoring', 'version': 4})
             verify.db.close()
+
+    def test_bounded_fair_admission_and_restart_expiry_janitor(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = f'{directory}/lifecycle.sqlite3'
+            now = [1000.0]
+            clock = lambda: now[0]
+            lifecycle = Lifecycle(path, clock=clock)
+            for tenant, session in (('a', 'a1'), ('b', 'b1'), ('a', 'a2')):
+                lifecycle.create(tenant, session)
+                lifecycle.enqueue(tenant, session, ttl_seconds=10, max_queued=3)
+            lifecycle.create('b', 'b2')
+            with self.assertRaises(OverflowError):
+                lifecycle.enqueue('b', 'b2', ttl_seconds=10, max_queued=3)
+            first = lifecycle.admit_next(capacity=1)
+            self.assertEqual((first['tenant'], first['session']), ('a', 'a1'))
+            lifecycle.transition('a', 'a1', 'completed', 'done', first['version'])
+            lifecycle.finish_execution('a1')
+            second = lifecycle.admit_next(capacity=1)
+            self.assertEqual((second['tenant'], second['session']), ('b', 'b1'))
+            lifecycle.db.close()
+
+            now[0] = 1011.0
+            restarted = Lifecycle(path, clock=clock)
+            self.assertCountEqual(restarted.expire_due(), ['b1', 'a2'])
+            self.assertEqual(restarted.get('b', 'b1')['state'], 'expired')
+            self.assertEqual(restarted.get('a', 'a2')['state'], 'expired')
+            restarted.db.close()
     def test_python_hidden(self):
         self.assertEqual(solve([]),{'by_sku':{},'total_cents':0})
         self.assertEqual(solve([{'sku':'pear','quantity':2,'unit_cents':125},{'sku':'pear','quantity':3,'unit_cents':125}])['total_cents'],625)

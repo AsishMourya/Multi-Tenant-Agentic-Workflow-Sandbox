@@ -21,6 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from sandbox.vm_snapshot import verify_manifest, write_manifest
+from sandbox.process_env import safe_firecracker_env
 
 
 class UnixHTTPConnection(http.client.HTTPConnection):
@@ -62,7 +63,7 @@ class Guest:
         if config is not None:
             args += ['--config-file', str(config)]
         self.proc = subprocess.Popen(args, stdin=slave, stdout=slave, stderr=slave,
-                                     start_new_session=True)
+                                     start_new_session=True, env=safe_firecracker_env(os.environ))
         os.close(slave)
         self.master = master
         self.transcript = bytearray()

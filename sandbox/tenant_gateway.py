@@ -6,13 +6,12 @@ derived here and never accepted from a learner request body.
 import hashlib
 import hmac
 
-from sandbox.platform import TENANTS
-
-
 class TenantGateway:
     def __init__(self, platform, credentials):
-        if set(credentials) != set(TENANTS):
-            raise ValueError('one credential is required for each tenant')
+        if (not isinstance(credentials, dict) or not credentials or
+                any(not isinstance(tenant, str) or not 1 <= len(tenant) <= 64
+                    for tenant in credentials)):
+            raise ValueError('at least one named tenant credential is required')
         if any(not isinstance(token, str) or len(token) < 32 for token in credentials.values()):
             raise ValueError('tenant credentials must be at least 32 characters')
         if len(set(credentials.values())) != len(credentials):

@@ -9,13 +9,14 @@ from sandbox.platform import Platform
 
 
 class RecordingBackend:
-    def __init__(self, output):
+    def __init__(self, output=None):
         self.output = output
         self.calls = []
 
     def run_python(self, *args):
         self.calls.append(args)
-        return {'status': 'ok', 'stdout': json.dumps(self.output), 'stderr': '', 'exit_code': 0}
+        output = solve(args[3]) if self.output is None else self.output
+        return {'status': 'ok', 'stdout': json.dumps(output), 'stderr': '', 'exit_code': 0}
 
 
 class WorkflowBackend:
@@ -34,7 +35,7 @@ class WorkflowBackend:
         on_resume()
         self.retry_cached = broker_call(request) == result
         accepted = payload['quantity'] <= result['available']
-        output = {'accepted': accepted,
+        output = {'sku': payload['sku'], 'quantity': payload['quantity'], 'available': result['available'], 'accepted': accepted,
                   'explanation': f"Requested {payload['quantity']}; available {result['available']}; accepted {accepted}."}
         return {'status': 'ok', 'stdout': json.dumps(output), 'stderr': '', 'exit_code': 0,
                 'snapshot': {'compute_released': True, 'restored': True}}
@@ -87,7 +88,7 @@ class IsolatedSubmissionContract(unittest.TestCase):
             platform.close()
 
     def test_grades_observed_guest_output(self):
-        backend = RecordingBackend(solve(self.payload))
+        backend = RecordingBackend()
         platform = Platform(Path(self.tmp.name) / 'platform', backend=backend)
         try:
             session = platform.create_session('tenant-a', 'orders-cents')
@@ -119,7 +120,7 @@ class IsolatedSubmissionContract(unittest.TestCase):
 
     def test_persisted_status_and_delete_keep_owner_boundary(self):
         root = Path(self.tmp.name) / 'platform'
-        backend = RecordingBackend(solve(self.payload))
+        backend = RecordingBackend()
         platform = Platform(root, backend=backend)
         session = platform.create_session('tenant-a', 'orders-cents')
         platform.submit_code('tenant-a', session, 'source', self.payload,
@@ -134,6 +135,30 @@ class IsolatedSubmissionContract(unittest.TestCase):
             restarted.delete('tenant-a', session)
             with self.assertRaises(PermissionError):
                 restarted.status('tenant-a', session)
+        finally:
+            restarted.close()
+
+    def test_review_decision_survives_controller_restart(self):
+        root = Path(self.tmp.name) / 'platform'
+        platform = Platform(root, backend=RecordingBackend())
+        try:
+            session = platform.create_session('tenant-a', 'orders-cents')
+            def judgment(level):
+                return {'criteria': {name: {'level': level, 'evidence': 'observed', 'reason': 'needs review'}
+                                     for name in ('correctness', 'clarity')},
+                        'conflicts_with_tests': False, 'confidence': .9}
+            result = platform.submit_code('tenant-a', session, 'source', self.payload,
+                                          [judgment(4), judgment(1)])
+            grade_id = result['grade']['grade_id']
+            self.assertEqual(result['grade']['status'], 'REVIEW')
+            platform.add_review(grade_id, 'mentor-1', 'PASS', 'reviewed evidence')
+        finally:
+            platform.close()
+        restarted = Platform(root)
+        try:
+            restored = restarted.status('tenant-a', session)['result']['grade']
+            self.assertEqual(restored['review_history'][0]['decision'], 'PASS')
+            self.assertEqual(restored['review_history'][0]['reviewer'], 'mentor-1')
         finally:
             restarted.close()
 

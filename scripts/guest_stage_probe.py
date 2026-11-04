@@ -25,10 +25,13 @@ def main(args):
         subprocess.run(['mount', '-o', 'loop,ro', str(disk), str(mount)], check=True)
         try:
             result = {
-                'source_matches': (mount / 'tmp/dat_submission.py').read_text() == source,
+                'source_matches': (mount / 'opt/dat/dat_submission.py').read_text() == source,
                 'input_matches': json.loads((mount / 'root/dat_input.json').read_text()) == {'value': 42},
                 'runner_present': (mount / 'root/dat_runner.py').is_file(),
                 'config_nonce_matches': json.loads((mount / 'root/dat_config.json').read_text())['nonce'] == 'stage-probe-nonce',
+                'no_platform_secret_in_staged_files': all(
+                    b'DUMMY_UPSTREAM_CANARY_NOT_A_REAL_SECRET' not in path.read_bytes()
+                    for path in (mount / 'root').glob('dat_*') if path.is_file()),
             }
         finally:
             subprocess.run(['umount', str(mount)], check=True)

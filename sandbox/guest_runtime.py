@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 
 
-SOURCE = '/tmp/dat_submission.py'
+SOURCE = '/opt/dat/dat_submission.py'
 INPUT = '/root/dat_input.json'
 CONFIG = '/root/dat_config.json'
 BROKER_SOCKET = '/tmp/dat-broker.sock'

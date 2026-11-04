@@ -59,7 +59,7 @@ def main(args):
     before = set(backend.root.glob('submission-*'))
     credentials = {tenant: secrets.token_urlsafe(32)
                    for tenant in ('tenant-a', 'tenant-b')}
-    orders_source = (repo / 'examples/orders_checkpoint_submission.py').read_text(encoding='utf-8')
+    orders_source = (repo / 'examples/orders_pause_submission.py').read_text(encoding='utf-8')
     workflow_source = (repo / 'examples/inventory_langgraph_submission.py').read_text(encoding='utf-8')
     with tempfile.TemporaryDirectory(prefix='platform-demo-', dir=backend.root) as directory:
         root = Path(directory)

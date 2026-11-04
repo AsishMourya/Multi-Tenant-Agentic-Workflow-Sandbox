@@ -16,7 +16,7 @@ from sandbox.firecracker_backend import FirecrackerBackend
 def main(args):
     backend = FirecrackerBackend(args.root)
     source = (Path(__file__).resolve().parents[1] /
-              'examples/orders_checkpoint_submission.py').read_text(encoding='utf-8')
+              'examples/orders_pause_submission.py').read_text(encoding='utf-8')
     nonce = 'offline-python-checkpoint'
     with tempfile.TemporaryDirectory(prefix='python-chroot-', dir=backend.root) as directory:
         run = Path(directory)

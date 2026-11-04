@@ -13,13 +13,14 @@ from pathlib import Path
 from exercises.python.reference import solve
 from exercises.workflow.reference import build
 from sandbox.broker import Broker
+from sandbox.agent_grading import grade_inventory_agent
+from sandbox.deterministic_runner import grade_orders_submission
 from sandbox.firecracker_backend import BackendUnavailable
 from sandbox.grading import decision
 from sandbox.lifecycle import Lifecycle
 from sandbox.state import StateStore
 
 
-TENANTS = frozenset({'tenant-a', 'tenant-b'})
 EXERCISES = frozenset({'orders-cents', 'inventory'})
 RUNTIME_IMAGE = 'w1-trusted-fixture-only'
 
@@ -31,7 +32,12 @@ def _now():
 class Platform:
     """A deliberately small, tenant-aware API for the first complete flow."""
 
-    def __init__(self, root='work/platform', backend=None):
+    def __init__(self, root='work/platform', backend=None, *, worker_capacity=8,
+                 tenant_worker_capacity=1, queue_limit=32, session_ttl_seconds=300):
+        if type(worker_capacity) is not int or worker_capacity < 1:
+            raise ValueError('worker_capacity must be positive')
+        if type(tenant_worker_capacity) is not int or tenant_worker_capacity < 1:
+            raise ValueError('tenant_worker_capacity must be positive')
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
         self.lifecycle = Lifecycle(str(self.root / 'lifecycle.sqlite3'))
@@ -44,6 +50,13 @@ class Platform:
         self.sessions = {}
         self.grades = []
         self.backend = backend
+        self.worker_capacity = worker_capacity
+        self.tenant_worker_capacity = tenant_worker_capacity
+        self.queue_limit = queue_limit
+        self.session_ttl_seconds = session_ttl_seconds
+        # Recovery is safe to repeat: terminal sessions are ignored and queued
+        # work is admitted only when a capacity slot is available.
+        self.reap_expired()
 
     def close(self):
         self.lifecycle.db.close()
@@ -51,19 +64,35 @@ class Platform:
         self.db.close()
 
     def create_session(self, tenant, exercise):
-        if tenant not in TENANTS:
+        if not isinstance(tenant, str) or not 1 <= len(tenant) <= 64:
             raise PermissionError('unknown tenant')
         if exercise not in EXERCISES:
             raise ValueError('unsupported exercise')
         session = f'{tenant}-{secrets.token_hex(6)}'
         self.lifecycle.create(tenant, session)
-        self.lifecycle.transition(tenant, session, 'running', 'start', 0)
+        self.db.execute('INSERT INTO submissions(session,tenant,exercise) VALUES(?,?,?)',
+                        (session, tenant, exercise))
+        self.lifecycle.enqueue(tenant, session, ttl_seconds=self.session_ttl_seconds,
+                               max_queued=self.queue_limit)
         if exercise == 'inventory':
             self.broker.register(tenant, session, exercise)
         self.sessions[session] = {'tenant': tenant, 'exercise': exercise}
-        self.db.execute('INSERT INTO submissions(session,tenant,exercise) VALUES(?,?,?)',
-                        (session, tenant, exercise))
+        self._admit_available()
         return session
+
+    def _admit_available(self):
+        return self.lifecycle.admit_next(capacity=self.worker_capacity,
+                                         tenant_capacity=self.tenant_worker_capacity)
+
+    def reap_expired(self):
+        """Controller-start/recovery janitor for expired admissions."""
+        expired = self.lifecycle.expire_due()
+        self._admit_available()
+        return expired
+
+    def _complete_execution(self, session):
+        self.lifecycle.finish_execution(session)
+        self._admit_available()
 
     def _owned(self, tenant, session):
         record = self.sessions.get(session)
@@ -85,6 +114,8 @@ class Platform:
 
     def submit(self, tenant, session, payload, judges):
         record = self._owned(tenant, session)
+        if self.lifecycle.get(tenant, session)['state'] != 'running':
+            raise RuntimeError('session is not admitted for execution')
         if record['exercise'] == 'orders-cents':
             output = solve(payload)
             deterministic = 1.0
@@ -98,6 +129,9 @@ class Platform:
                             deterministic, invariant_ok, judges, trace)
         self.grades.append(grade)
         self._save_result(session, output, grade, trace)
+        self.lifecycle.transition(tenant, session, 'completed', 'trusted-completed',
+                                  self.lifecycle.get(tenant, session)['version'])
+        self._complete_execution(session)
         return {'output': output, 'grade': grade, 'trace': trace}
 
     def _save_result(self, session, output, grade, trace):
@@ -115,6 +149,7 @@ class Platform:
         if current['state'] in {'running', 'checkpointing', 'paused', 'restoring'}:
             self.lifecycle.transition(tenant, session, 'failed',
                                       'vm-failed', current['version'])
+        self._complete_execution(session)
         return {'output': None,
                 'execution': {'status': 'infrastructure_error',
                               'reason': 'isolated backend unavailable'},
@@ -150,6 +185,8 @@ class Platform:
         it must never be used to execute learner-supplied source.
         """
         record = self._owned(tenant, session)
+        if self.lifecycle.get(tenant, session)['state'] != 'running':
+            raise RuntimeError('session is not admitted for execution')
         if record['exercise'] != 'orders-cents':
             raise ValueError('workflow guest submissions are not integrated')
         if self.backend is None:
@@ -186,6 +223,7 @@ class Platform:
             if current['state'] in {'running', 'checkpointing', 'paused', 'restoring'}:
                 self.lifecycle.transition(tenant, session, 'failed',
                                           'vm-failed', current['version'])
+                self._complete_execution(session)
             raise
         output = None
         if execution['status'] == 'ok':
@@ -198,10 +236,25 @@ class Platform:
         except (TypeError, ValueError, KeyError):
             expected = None
         correct = output is not None and expected is not None and output == expected
-        trace = [{'check': 'isolated observed output equals trusted reference',
-                  'passed': correct, 'execution_status': execution['status']}]
+        if pause_resume:
+            # The supported full-VM pause exercise is demonstrated once; repeated
+            # hidden vectors are a separate non-checkpoint grading invocation.
+            deterministic = float(correct)
+            invariant_ok = correct
+            trace = [{'check': 'isolated observed output equals trusted reference',
+                      'weight': 1.0, 'passed': correct,
+                      'execution_status': execution['status']}]
+        else:
+            hidden = grade_orders_submission(
+                lambda case: self.backend.run_python(tenant, session, source, case))
+            deterministic = hidden['score']
+            invariant_ok = correct and hidden['invariants_ok']
+            trace = hidden['results']
+            trace.append({'check': 'submitted visible output equals trusted reference',
+                          'weight': 1.0, 'passed': correct,
+                          'execution_status': execution['status']})
         grade = self._grade(tenant, session, record['exercise'], payload, output,
-                            float(correct), correct, judges, trace,
+                            deterministic, invariant_ok, judges, trace,
                             runtime_image_digest=execution.get('runtime_image_digest'),
                             policy_ok=execution['status'] not in {'timeout', 'output_limit'},
                             source=source)
@@ -211,11 +264,14 @@ class Platform:
         current = self.lifecycle.get(tenant, session)
         self.lifecycle.transition(tenant, session, 'completed',
                                   'vm-completed', current['version'])
+        self._complete_execution(session)
         return {'output': output, 'execution': execution, 'grade': grade, 'trace': trace}
 
     def submit_workflow_code(self, tenant, session, source, payload, judges):
         """Run learner LangGraph source with one host-scoped mock tool call."""
         record = self._owned(tenant, session)
+        if self.lifecycle.get(tenant, session)['state'] != 'running':
+            raise RuntimeError('session is not admitted for execution')
         if record['exercise'] != 'inventory':
             raise ValueError('inventory session required')
         if self.backend is None:
@@ -265,6 +321,7 @@ class Platform:
             if current['state'] in {'running', 'checkpointing', 'paused', 'restoring'}:
                 self.lifecycle.transition(tenant, session, 'failed',
                                           'vm-failed', current['version'])
+                self._complete_execution(session)
             raise
         self.broker.revoke(session, state='completed')
         current = self.lifecycle.get(tenant, session)
@@ -276,29 +333,17 @@ class Platform:
                 output = json.loads(execution['stdout'])
             except (TypeError, ValueError):
                 pass
-        expected = None
-        if len(effects) == 1:
-            try:
-                quantity = payload['quantity']
-                available = effects[0]['result']['available']
-                accepted = quantity <= available
-                expected = {'accepted': accepted,
-                            'explanation': f'Requested {quantity}; available {available}; accepted {accepted}.'}
-            except (KeyError, TypeError):
-                pass
-        correct = expected is not None and output == expected
-        invariant_ok = len(effects) == 1 and effects[0]['operation'] == 'inventory.lookup'
-        trace = [{'check': 'isolated LangGraph output and scoped broker effect',
-                  'passed': correct and invariant_ok, 'effects': effects,
-                  'execution_status': execution['status']}]
+        agent_grade = grade_inventory_agent(payload, output, effects, execution)
+        trace = agent_grade['results']
         grade = self._grade(tenant, session, 'inventory', payload, output,
-                            float(correct), invariant_ok and correct, judges, trace,
+                            agent_grade['score'], agent_grade['invariants_ok'], judges, trace,
                             runtime_image_digest=execution.get('runtime_image_digest'),
                             policy_ok=execution['status'] not in {'timeout', 'output_limit'},
                             source=source)
         self.grades.append(grade)
         grade['metrics']['full_vm_snapshot'] = bool(execution.get('snapshot'))
         self._save_result(session, output, grade, trace)
+        self._complete_execution(session)
         return {'output': output, 'execution': execution, 'grade': grade, 'trace': trace}
 
     def _submit_inventory(self, tenant, session, payload):
@@ -377,11 +422,27 @@ class Platform:
         }
 
     def add_review(self, grade_id, reviewer, decision_text, reason):
-        for grade in self.grades:
-            if grade['grade_id'] == grade_id:
-                if grade['status'] != 'REVIEW':
-                    raise ValueError('grade is not pending review')
-                grade['review_history'].append({'reviewer': reviewer, 'at_utc': _now(),
-                                                'decision': decision_text, 'reason': reason})
-                return grade
+        if (not all(isinstance(value, str) and value.strip()
+                    for value in (grade_id, reviewer, decision_text, reason)) or
+                decision_text not in {'PASS', 'FAIL', 'ESCALATE'}):
+            raise ValueError('invalid review record')
+        row = self.db.execute('SELECT session,result_json FROM submissions WHERE result_json IS NOT NULL').fetchall()
+        for session, encoded in row:
+            result = json.loads(encoded)
+            grade = result.get('grade')
+            if not isinstance(grade, dict) or grade.get('grade_id') != grade_id:
+                continue
+            if grade['status'] != 'REVIEW':
+                raise ValueError('grade is not pending review')
+            review = {'reviewer': reviewer, 'at_utc': _now(),
+                      'decision': decision_text, 'reason': reason}
+            grade.setdefault('review_history', []).append(review)
+            # The machine recommendation remains REVIEW; a human decision is a
+            # separate auditable record rather than an overwritten model result.
+            self.db.execute('UPDATE submissions SET result_json=? WHERE session=?',
+                            (json.dumps(result), session))
+            for in_memory in self.grades:
+                if in_memory['grade_id'] == grade_id:
+                    in_memory['review_history'] = list(grade['review_history'])
+            return grade
         raise KeyError('unknown grade')

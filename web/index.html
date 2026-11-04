@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agent Sandbox</title>
+  <style>
+    body{max-width:900px;margin:2rem auto;font:16px system-ui;background:#10131a;color:#e9edf5;padding:0 1rem}
+    section{background:#1a2030;padding:1rem;margin:1rem 0;border-radius:10px} input,select,textarea,button{width:100%;box-sizing:border-box;padding:.6rem;margin:.35rem 0;border-radius:6px;border:1px solid #536078;background:#10131a;color:inherit} button{background:#4f7cff;border:0;font-weight:700;cursor:pointer} pre{white-space:pre-wrap;overflow:auto;background:#0b0e14;padding:1rem;border-radius:6px}.hint{color:#aab6cf}
+  </style>
+</head>
+<body>
+  <h1>Secure Agent Sandbox</h1>
+  <p class="hint">Local demo client. Bearer tokens stay in this browser tab and tenant identity is derived by the server.</p>
+  <section>
+    <label>Bearer token<input id="token" type="password" autocomplete="off"></label>
+    <label>Exercise<select id="exercise"><option value="orders-cents">Python: orders</option><option value="inventory">Agent: inventory</option></select></label>
+    <button id="create">Create session</button>
+  </section>
+  <section>
+    <label>Session ID<input id="session"></label>
+    <label>Submission source<textarea id="source" rows="8">import json, sys
+orders = json.load(sys.stdin)
+totals = {}
+for order in orders:
+  totals[order['sku']] = totals.get(order['sku'], 0) + order['quantity'] * order['unit_cents']
+print(json.dumps({'by_sku': dict(sorted(totals.items())), 'total_cents': sum(totals.values())}))</textarea></label>
+    <label>Input JSON<textarea id="payload" rows="3">[]</textarea></label>
+    <button id="submit">Submit</button><button id="status">Refresh status</button>
+  </section>
+  <pre id="result">Ready.</pre>
+  <script>
+    const $ = id => document.getElementById(id), show = value => $('result').textContent = JSON.stringify(value, null, 2);
+    const request = async (path, options = {}) => { const response = await fetch(path, {...options, headers:{'Authorization':'Bearer '+$('token').value, 'Content-Type':'application/json', ...(options.headers||{})}}); const data = await response.json(); if (!response.ok) throw new Error(data.error || response.status); return data; };
+    $('create').onclick = async () => { try { const data = await request('/v1/sessions',{method:'POST',body:JSON.stringify({exercise:$('exercise').value})}); $('session').value=data.session; show(data); } catch(e){show({error:e.message});} };
+    $('status').onclick = async () => { try { show(await request('/v1/sessions/'+encodeURIComponent($('session').value))); } catch(e){show({error:e.message});} };
+    $('submit').onclick = async () => { try { const agent=$('exercise').value==='inventory'; show(await request('/v1/sessions/'+encodeURIComponent($('session').value)+'/'+(agent?'agent':'python'),{method:'POST',body:JSON.stringify({source:$('source').value,payload:JSON.parse($('payload').value)})})); } catch(e){show({error:e.message});} };
+  </script>
+</body>
+</html>

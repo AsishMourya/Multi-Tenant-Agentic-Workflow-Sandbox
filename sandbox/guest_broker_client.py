@@ -2,7 +2,7 @@
 import json
 import socket
 
-from guest_checkpoint_client import checkpoint
+from guest_pause_client import pause_and_resume
 
 
 def lookup(sku, request='lookup-1'):
@@ -20,5 +20,5 @@ def lookup(sku, request='lookup-1'):
     result = json.loads(bytes(chunks).split(b'\n', 1)[0])
     if 'error' in result:
         raise PermissionError('broker request denied')
-    checkpoint()
+    pause_and_resume()
     return result
