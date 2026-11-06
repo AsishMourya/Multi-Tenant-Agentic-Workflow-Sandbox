@@ -8,6 +8,8 @@ work/
 evidence/
 assets/
 *.sqlite*
+config/tenants.local.json
+config/tenants.demo.json
 *.ext4
 *.mem
 *.vmstate

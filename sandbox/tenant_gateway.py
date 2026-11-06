@@ -47,3 +47,9 @@ class TenantGateway:
 
     def delete(self, bearer, session):
         return self.platform.delete(self._tenant(bearer), session)
+
+    def pause(self, bearer, session, payload):
+        return self.platform.pause(self._tenant(bearer), session, payload)
+
+    def resume(self, bearer, session):
+        return self.platform.resume(self._tenant(bearer), session)

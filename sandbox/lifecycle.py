@@ -1,7 +1,9 @@
 """Executable lifecycle specification with SQLite compare-and-swap transactions."""
 import json
 import sqlite3
+import threading
 import time
+from functools import wraps
 from datetime import datetime, timezone
 
 TRANSITIONS = {
@@ -13,9 +15,25 @@ TRANSITIONS = {
     'completed': {'deleted'}, 'failed': {'deleted'}, 'expired': {'deleted'}, 'deleted': set(),
 }
 
+
+def synchronized(method):
+    """Serialize compound SQLite operations on the controller connection.
+
+    The HTTP control plane uses a threaded server.  SQLite permits a connection
+    to be shared only when this is explicitly enabled, and transactions still
+    need a controller-side lock so two requests cannot interleave a lifecycle
+    transition.
+    """
+    @wraps(method)
+    def locked(self, *args, **kwargs):
+        with self._lock:
+            return method(self, *args, **kwargs)
+    return locked
+
 class Lifecycle:
     def __init__(self, path=':memory:', clock=time.time):
-        self.db = sqlite3.connect(path, isolation_level=None)
+        self._lock = threading.RLock()
+        self.db = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
         self.clock = clock
         self.db.executescript('''
         CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY, tenant TEXT NOT NULL,
@@ -29,9 +47,11 @@ class Lifecycle:
         CREATE TABLE IF NOT EXISTS scheduler(id INTEGER PRIMARY KEY CHECK(id=1), last_tenant TEXT);
         ''')
 
+    @synchronized
     def create(self, tenant, session):
         self.db.execute('INSERT INTO sessions(id,tenant,state) VALUES(?,?,?)', (session,tenant,'queued'))
 
+    @synchronized
     def enqueue(self, tenant, session, *, ttl_seconds=300, max_queued=32):
         """Durably queue a session, rejecting excess work before it consumes a VM."""
         if type(ttl_seconds) not in (int, float) or ttl_seconds <= 0 or max_queued < 1:
@@ -55,6 +75,7 @@ class Lifecycle:
             if self.db.in_transaction: self.db.execute('ROLLBACK')
             raise
 
+    @synchronized
     def admit_next(self, *, capacity, tenant_capacity=1):
         """Atomically start one queued session using tenant round-robin fairness."""
         if (type(capacity) is not int or capacity < 1 or
@@ -97,10 +118,12 @@ class Lifecycle:
             if self.db.in_transaction: self.db.execute('ROLLBACK')
             raise
 
+    @synchronized
     def finish_execution(self, session):
         """Release a worker slot after a terminal result and return the next admission."""
         self.db.execute('DELETE FROM admission WHERE session=?', (session,))
 
+    @synchronized
     def expire_due(self):
         """Expire queued or active work after controller restart; returns affected IDs."""
         now = float(self.clock())
@@ -114,6 +137,7 @@ class Lifecycle:
             expired.append(session)
         return expired
 
+    @synchronized
     def get(self, tenant, session):
         row = self.db.execute('SELECT state,version FROM sessions WHERE id=? AND tenant=?',
                               (session, tenant)).fetchone()
@@ -121,6 +145,7 @@ class Lifecycle:
             raise PermissionError('session unavailable')
         return {'state': row[0], 'version': row[1]}
 
+    @synchronized
     def transition(self, tenant, session, target, key, expected_version, durable=False):
         self.db.execute('BEGIN IMMEDIATE')
         try:
@@ -148,5 +173,6 @@ class Lifecycle:
             if self.db.in_transaction: self.db.execute('ROLLBACK')
             raise
 
+    @synchronized
     def cleanup_done(self, session):
         self.db.execute('UPDATE cleanup SET pending=0 WHERE session=?',(session,))

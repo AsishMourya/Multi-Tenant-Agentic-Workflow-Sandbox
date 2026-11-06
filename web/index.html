@@ -3,38 +3,77 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Agent Sandbox</title>
+  <title>Sandbox Studio</title>
   <style>
-    body{max-width:900px;margin:2rem auto;font:16px system-ui;background:#10131a;color:#e9edf5;padding:0 1rem}
-    section{background:#1a2030;padding:1rem;margin:1rem 0;border-radius:10px} input,select,textarea,button{width:100%;box-sizing:border-box;padding:.6rem;margin:.35rem 0;border-radius:6px;border:1px solid #536078;background:#10131a;color:inherit} button{background:#4f7cff;border:0;font-weight:700;cursor:pointer} pre{white-space:pre-wrap;overflow:auto;background:#0b0e14;padding:1rem;border-radius:6px}.hint{color:#aab6cf}
+    :root{--ink:#eaf0ff;--muted:#9aa8c6;--panel:#111a2d;--panel-2:#17223a;--line:#2a3857;--blue:#6d8cff;--teal:#42d8b5;--red:#ff7790;--bg:#080d19}
+    *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at 15% 0,#172a53 0,transparent 35%),var(--bg);color:var(--ink);font:14px Inter,ui-sans-serif,system-ui,sans-serif;min-height:100vh}
+    header{height:68px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:#0b1120cc;backdrop-filter:blur(12px);position:sticky;top:0;z-index:2}.brand{font-size:18px;font-weight:750;letter-spacing:-.03em}.brand span{color:var(--teal)}.pill{border:1px solid #286c62;background:#102f32;color:#8ff0d9;border-radius:999px;padding:5px 10px;font-size:12px}
+    main{max-width:1440px;margin:auto;padding:26px;display:grid;grid-template-columns:280px minmax(0,1fr);gap:20px}.card{background:linear-gradient(145deg,#15213a,#101829);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 50px #0003}.side{padding:18px;height:max-content}.side h2,.workspace h1{margin:0}.side h2{font-size:14px}.eyebrow{color:var(--teal);font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.1em;margin:0 0 9px}.hint{color:var(--muted);line-height:1.5;font-size:12px}.field{margin:16px 0}.field label{display:block;color:#c9d5f2;font-size:12px;font-weight:650;margin-bottom:7px}input,select,textarea{width:100%;border:1px solid var(--line);border-radius:8px;background:#0a1120;color:var(--ink);padding:10px;font:inherit;outline:none}input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #6d8cff20}textarea{resize:vertical;line-height:1.55;font-family:"SFMono-Regular",Consolas,monospace;font-size:13px}button{border:0;border-radius:8px;padding:10px 13px;background:var(--blue);color:#fff;font-weight:700;cursor:pointer;transition:.15s}button:hover{filter:brightness(1.12);transform:translateY(-1px)}button.secondary{background:#202d47;border:1px solid #354665}.session{padding:12px;background:#0a1120;border:1px solid var(--line);border-radius:8px;word-break:break-all;color:var(--muted);font:12px monospace}
+    .workspace{min-width:0}.hero{padding:24px;margin-bottom:20px;display:flex;justify-content:space-between;gap:18px;align-items:start}.hero h1{font-size:28px;letter-spacing:-.045em}.hero p{max-width:620px;margin:9px 0 0;color:var(--muted);line-height:1.55}.mode{display:flex;gap:7px;flex-wrap:wrap}.mode span{font-size:12px;color:#bac8e7;padding:5px 9px;border-radius:999px;background:#1c2944;border:1px solid #32425f}
+    .grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,.75fr);gap:20px}.editor{padding:0;overflow:hidden}.editor-head{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line);background:#121d31}.editor-head strong{font-size:13px}.editor textarea{border:0;border-radius:0;min-height:390px;padding:18px;background:#0a1120}.runbar{padding:12px 16px;display:flex;justify-content:space-between;gap:10px;align-items:center;border-top:1px solid var(--line)}.runbar small{color:var(--muted)}
+    .stack{display:grid;gap:20px}.output{padding:0;overflow:hidden}.output h2{font-size:13px;margin:0;padding:14px 16px;border-bottom:1px solid var(--line)}pre{margin:0;padding:16px;min-height:210px;max-height:360px;overflow:auto;background:#0a1120;color:#c8d8fa;line-height:1.5;font:12px "SFMono-Regular",Consolas,monospace}.input-card{padding:16px}.input-card textarea{min-height:105px}.input-card .row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.input-card .row strong{font-size:13px}.footer-note{padding:16px 0 0;color:#7283a6;font-size:12px;line-height:1.5}
+    @media(max-width:900px){main{grid-template-columns:1fr;padding:16px}.grid{grid-template-columns:1fr}.side{order:2}.hero{display:block}.mode{margin-top:16px}}
   </style>
 </head>
 <body>
-  <h1>Secure Agent Sandbox</h1>
-  <p class="hint">Local demo client. Bearer tokens stay in this browser tab and tenant identity is derived by the server.</p>
-  <section>
-    <label>Bearer token<input id="token" type="password" autocomplete="off"></label>
-    <label>Exercise<select id="exercise"><option value="orders-cents">Python: orders</option><option value="inventory">Agent: inventory</option></select></label>
-    <button id="create">Create session</button>
-  </section>
-  <section>
-    <label>Session ID<input id="session"></label>
-    <label>Submission source<textarea id="source" rows="8">import json, sys
+  <header><div class="brand">sandbox<span>studio</span></div><div class="pill">Local secure workspace</div></header>
+  <main>
+    <aside class="side card">
+      <p class="eyebrow">Workspace access</p><h2>Connect as a tenant</h2>
+      <p class="hint">Your bearer token identifies your tenant. It is sent only with this request and is not saved by the page.</p>
+      <div class="field"><label for="token">Bearer token</label><input id="token" type="password" autocomplete="off" placeholder="Paste your tenant token"></div>
+      <div class="field"><label for="exercise">Exercise environment</label><select id="exercise"><option value="orders-cents">Python sandbox</option><option value="inventory">Agent workflow</option></select></div>
+      <button id="create">Create new session</button>
+      <div class="field"><label>Active session</label><div id="session-display" class="session">No session yet</div><input id="session" type="hidden"></div>
+      <button id="status" class="secondary">Refresh session status</button>
+      <div class="field"><button id="pause" class="secondary">Pause agent safe point</button><button id="resume" class="secondary">Resume agent safe point</button></div>
+      <p class="footer-note">Each run receives a disposable environment. Agent workflows may call only the approved mock tool through the broker.</p>
+    </aside>
+    <section class="workspace">
+      <div class="hero card"><div><p class="eyebrow">Secure execution workspace</p><h1>Write. Run. Inspect.</h1><p>Submit Python or an agent workflow to a resource-bounded, tenant-isolated environment. Results include output and grading evidence.</p></div><div class="mode"><span>Isolated VM</span><span>Scoped tools</span><span>Auditable grades</span></div></div>
+      <div class="grid">
+        <section class="editor card"><div class="editor-head"><strong id="file-label">main.py</strong><span class="hint" id="runtime-label">Python sandbox</span></div><textarea id="source" spellcheck="false"></textarea><div class="runbar"><small>Runs in a disposable guest environment.</small><button id="submit">Run submission</button></div></section>
+        <div class="stack"><section class="input-card card"><div class="row"><strong>Input JSON</strong><span class="hint">Sent to stdin</span></div><textarea id="payload" spellcheck="false"></textarea></section><section class="output card"><h2>Run result</h2><pre id="result">Create a session, then run your code.</pre></section></div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const $=id=>document.getElementById(id);
+    const python=`import json, sys
+
 orders = json.load(sys.stdin)
 totals = {}
 for order in orders:
-  totals[order['sku']] = totals.get(order['sku'], 0) + order['quantity'] * order['unit_cents']
-print(json.dumps({'by_sku': dict(sorted(totals.items())), 'total_cents': sum(totals.values())}))</textarea></label>
-    <label>Input JSON<textarea id="payload" rows="3">[]</textarea></label>
-    <button id="submit">Submit</button><button id="status">Refresh status</button>
-  </section>
-  <pre id="result">Ready.</pre>
-  <script>
-    const $ = id => document.getElementById(id), show = value => $('result').textContent = JSON.stringify(value, null, 2);
-    const request = async (path, options = {}) => { const response = await fetch(path, {...options, headers:{'Authorization':'Bearer '+$('token').value, 'Content-Type':'application/json', ...(options.headers||{})}}); const data = await response.json(); if (!response.ok) throw new Error(data.error || response.status); return data; };
-    $('create').onclick = async () => { try { const data = await request('/v1/sessions',{method:'POST',body:JSON.stringify({exercise:$('exercise').value})}); $('session').value=data.session; show(data); } catch(e){show({error:e.message});} };
-    $('status').onclick = async () => { try { show(await request('/v1/sessions/'+encodeURIComponent($('session').value))); } catch(e){show({error:e.message});} };
-    $('submit').onclick = async () => { try { const agent=$('exercise').value==='inventory'; show(await request('/v1/sessions/'+encodeURIComponent($('session').value)+'/'+(agent?'agent':'python'),{method:'POST',body:JSON.stringify({source:$('source').value,payload:JSON.parse($('payload').value)})})); } catch(e){show({error:e.message});} };
+    totals[order['sku']] = totals.get(order['sku'], 0) + order['quantity'] * order['unit_cents']
+print(json.dumps({'by_sku': dict(sorted(totals.items())), 'total_cents': sum(totals.values())}))`;
+    const agent=`import json, sys
+from typing import TypedDict
+from langgraph.graph import StateGraph, START, END
+from guest_broker_client import lookup
+
+class State(TypedDict, total=False):
+    sku: str; quantity: int; available: int; accepted: bool; explanation: str
+
+def inventory(state): return {'available': lookup(state['sku'])['available']}
+def explain(state):
+    accepted = state['quantity'] <= state['available']
+    return {'accepted': accepted, 'explanation': f"Requested {state['quantity']}; available {state['available']}; accepted {accepted}."}
+
+graph = StateGraph(State)
+graph.add_node('inventory', inventory); graph.add_node('explain', explain)
+graph.add_edge(START, 'inventory'); graph.add_edge('inventory', 'explain'); graph.add_edge('explain', END)
+result = graph.compile().invoke(json.load(sys.stdin))
+print(json.dumps({key: result[key] for key in ('sku','quantity','available','accepted','explanation')}))`;
+    const templates={"orders-cents":{source:python,payload:'[\n  {"sku":"apple","quantity":2,"unit_cents":125}\n]'},inventory:{source:agent,payload:'{\n  "sku":"apple",\n  "quantity":2\n}'}};
+    const show=value=>$('result').textContent=JSON.stringify(value,null,2);
+    const request=async(path,options={})=>{const response=await fetch(path,{...options,headers:{Authorization:'Bearer '+$('token').value,'Content-Type':'application/json',...(options.headers||{})}});const data=await response.json();if(!response.ok)throw new Error(data.error||response.status);return data};
+    const selectTemplate=()=>{const kind=$('exercise').value,template=templates[kind];$('source').value=template.source;$('payload').value=template.payload;$('file-label').textContent=kind==='inventory'?'agent.py':'main.py';$('runtime-label').textContent=kind==='inventory'?'LangGraph agent':'Python sandbox'};
+    $('exercise').onchange=selectTemplate; selectTemplate();
+    $('create').onclick=async()=>{try{const data=await request('/v1/sessions',{method:'POST',body:JSON.stringify({exercise:$('exercise').value})});$('session').value=data.session;$('session-display').textContent=data.session;show(data)}catch(error){show({error:error.message})}};
+    $('status').onclick=async()=>{try{show(await request('/v1/sessions/'+encodeURIComponent($('session').value)))}catch(error){show({error:error.message})}};
+    $('pause').onclick=async()=>{try{show(await request('/v1/sessions/'+encodeURIComponent($('session').value)+'/pause',{method:'POST',body:JSON.stringify({payload:JSON.parse($('payload').value)})}))}catch(error){show({error:error.message})}};
+    $('resume').onclick=async()=>{try{show(await request('/v1/sessions/'+encodeURIComponent($('session').value)+'/resume',{method:'POST',body:'{}'}))}catch(error){show({error:error.message})}};
+    $('submit').onclick=async()=>{try{const agentMode=$('exercise').value==='inventory';show(await request('/v1/sessions/'+encodeURIComponent($('session').value)+'/'+(agentMode?'agent':'python'),{method:'POST',body:JSON.stringify({source:$('source').value,payload:JSON.parse($('payload').value)})}))}catch(error){show({error:error.message})}};
   </script>
 </body>
 </html>

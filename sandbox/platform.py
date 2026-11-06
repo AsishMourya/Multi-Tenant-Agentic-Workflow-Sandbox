@@ -94,6 +94,18 @@ class Platform:
         self.lifecycle.finish_execution(session)
         self._admit_available()
 
+    @staticmethod
+    def _resolve_judgments(judges, observed):
+        """Obtain server-owned semantic judgments after deterministic evidence exists."""
+        if not callable(judges):
+            return judges
+        resolved = []
+        for _ in range(2):
+            response = judges(observed)
+            resolved.append(response['judgment'] if isinstance(response, dict)
+                            and 'judgment' in response else response)
+        return resolved
+
     def _owned(self, tenant, session):
         record = self.sessions.get(session)
         if record is None:
@@ -253,8 +265,10 @@ class Platform:
             trace.append({'check': 'submitted visible output equals trusted reference',
                           'weight': 1.0, 'passed': correct,
                           'execution_status': execution['status']})
+        judgments = self._resolve_judgments(judges, {'exercise': record['exercise'],
+            'payload': payload, 'output': output, 'deterministic_results': trace})
         grade = self._grade(tenant, session, record['exercise'], payload, output,
-                            deterministic, invariant_ok, judges, trace,
+                            deterministic, invariant_ok, judgments, trace,
                             runtime_image_digest=execution.get('runtime_image_digest'),
                             policy_ok=execution['status'] not in {'timeout', 'output_limit'},
                             source=source)
@@ -335,8 +349,11 @@ class Platform:
                 pass
         agent_grade = grade_inventory_agent(payload, output, effects, execution)
         trace = agent_grade['results']
+        judgments = self._resolve_judgments(judges, {'exercise': 'inventory',
+            'payload': payload, 'output': output, 'deterministic_results': trace,
+            'tool_effects': effects})
         grade = self._grade(tenant, session, 'inventory', payload, output,
-                            agent_grade['score'], agent_grade['invariants_ok'], judges, trace,
+                            agent_grade['score'], agent_grade['invariants_ok'], judgments, trace,
                             runtime_image_digest=execution.get('runtime_image_digest'),
                             policy_ok=execution['status'] not in {'timeout', 'output_limit'},
                             source=source)

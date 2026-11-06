@@ -18,10 +18,10 @@ def bearer(headers):
 
 
 class SandboxService:
-    def __init__(self, gateway, *, judgments=()):
+    def __init__(self, gateway, *, judge_provider=None):
         self.gateway = gateway
-        # Server-owned provider/fixtures only. Browser payloads never influence it.
-        self.judgments = judgments
+        # Server-owned provider only. Browser payloads never influence it.
+        self.judge_provider = judge_provider
 
     def create(self, credential, body):
         return {'session': self.gateway.create(credential, body['exercise'])}
@@ -35,12 +35,19 @@ class SandboxService:
 
     def submit_python(self, credential, session, body):
         return self.gateway.submit_python(credential, session, body['source'], body['payload'],
-                                          list(self.judgments),
+                                          self.judge_provider or (),
                                           pause_resume=bool(body.get('pause_resume', False)))
 
     def submit_agent(self, credential, session, body):
         return self.gateway.submit_workflow(credential, session, body['source'], body['payload'],
-                                            list(self.judgments))
+                                            self.judge_provider or ())
+
+    def pause(self, credential, session, body):
+        return self.gateway.pause(credential, session, body['payload'])
+
+    def resume(self, credential, session):
+        output, trace = self.gateway.resume(credential, session)
+        return {'output': output, 'trace': trace}
 
 
 def handler_for(service):
@@ -83,6 +90,10 @@ def handler_for(service):
                     return HTTPStatus.OK, service.submit_python(credential, session, self._body())
                 if self.command == 'POST' and parts[3:] == ['agent']:
                     return HTTPStatus.OK, service.submit_agent(credential, session, self._body())
+                if self.command == 'POST' and parts[3:] == ['pause']:
+                    return HTTPStatus.OK, service.pause(credential, session, self._body())
+                if self.command == 'POST' and parts[3:] == ['resume']:
+                    return HTTPStatus.OK, service.resume(credential, session)
             raise ValueError('unknown endpoint')
 
         def _handle(self):

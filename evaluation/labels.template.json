@@ -1,0 +1,12 @@
+{
+  "schema_version": "human-labels-1.0.0",
+  "submissions": [
+    {
+      "id": "replace-with-opaque-id",
+      "family": "keep-related-variants-together",
+      "human_ratings": [true, false],
+      "adjudicated_correct": true,
+      "automated_status": "REVIEW"
+    }
+  ]
+}
