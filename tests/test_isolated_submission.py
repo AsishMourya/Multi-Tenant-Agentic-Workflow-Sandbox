@@ -1,10 +1,13 @@
 import json
 import tempfile
+import threading
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from exercises.python.reference import solve
 from sandbox.firecracker_backend import BackendUnavailable
+from sandbox.local_judge import JudgeUnavailable
 from sandbox.platform import Platform
 
 
@@ -60,6 +63,22 @@ class UnavailableBackend:
 
     def run_workflow(self, *args):
         raise BackendUnavailable('KVM unavailable')
+
+
+class BlockingBackend:
+    def __init__(self):
+        self.started = threading.Event()
+        self.release = threading.Event()
+        self.calls = 0
+
+    def run_python(self, tenant, session, source, payload, **_kwargs):
+        self.calls += 1
+        if self.calls == 1:
+            self.started.set()
+            if not self.release.wait(timeout=3):
+                raise TimeoutError('test backend release was not signalled')
+        return {'status': 'ok', 'stdout': json.dumps(solve(payload)),
+                'stderr': '', 'exit_code': 0}
 
 
 def judge():
@@ -190,6 +209,54 @@ class IsolatedSubmissionContract(unittest.TestCase):
                 self.assertEqual(result['grade']['status'], 'RETRY_ERROR')
                 self.assertEqual(result['execution']['status'], 'infrastructure_error')
                 self.assertEqual(platform.lifecycle.get(tenant, session)['state'], 'failed')
+        finally:
+            platform.close()
+
+    def test_concurrent_submissions_for_one_session_execute_once(self):
+        backend = BlockingBackend()
+        platform = Platform(Path(self.tmp.name) / 'platform', backend=backend)
+        try:
+            session = platform.create_session('tenant-a', 'orders-cents')
+            def submit():
+                try:
+                    return platform.submit_code('tenant-a', session, 'source',
+                                                self.payload, [judge(), judge()])
+                except RuntimeError as exc:
+                    return exc
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                first = pool.submit(submit)
+                self.assertTrue(backend.started.wait(timeout=3))
+                second = pool.submit(submit)
+                backend.release.set()
+                results = [first.result(timeout=3), second.result(timeout=3)]
+
+            self.assertEqual(sum(isinstance(result, dict) for result in results), 1)
+            self.assertEqual(sum(isinstance(result, RuntimeError) for result in results), 1)
+            self.assertEqual(backend.calls, 5)
+        finally:
+            backend.release.set()
+            platform.close()
+
+    def test_judge_infrastructure_failure_records_retry_and_releases_worker(self):
+        platform = Platform(Path(self.tmp.name) / 'platform',
+                            backend=RecordingBackend())
+        try:
+            session = platform.create_session('tenant-a', 'orders-cents')
+
+            def unavailable(_evidence):
+                raise JudgeUnavailable('local judge unavailable')
+
+            result = platform.submit_code('tenant-a', session, 'source',
+                                          self.payload, unavailable)
+
+            self.assertEqual(result['grade']['status'], 'RETRY_ERROR')
+            self.assertEqual(result['grade']['metrics']['judge_error'],
+                             'local judge unavailable')
+            self.assertEqual(platform.lifecycle.get('tenant-a', session)['state'],
+                             'completed')
+            self.assertTrue(any(check['check'] == 'semantic judge availability'
+                                for check in result['trace']))
         finally:
             platform.close()
 

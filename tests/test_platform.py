@@ -38,6 +38,43 @@ class PlatformFlow(unittest.TestCase):
             self.platform.submit('tenant-a', inventory, {'sku': 'apple', 'quantity': 1},
                                  [judge(), judge()])
 
+    def test_idle_sessions_do_not_reserve_worker_capacity(self):
+        platform = Platform(Path(self.tmp.name) / 'limited', worker_capacity=1,
+                            tenant_worker_capacity=1)
+        try:
+            first = platform.create_session('tenant-a', 'orders-cents')
+            second = platform.create_session('tenant-b', 'orders-cents')
+            self.assertEqual(platform.lifecycle.get('tenant-a', first)['state'], 'queued')
+            self.assertEqual(platform.lifecycle.get('tenant-b', second)['state'], 'queued')
+            self.assertEqual(platform.lifecycle.db.execute(
+                'SELECT count(*) FROM admission').fetchone()[0], 0)
+            result = platform.submit('tenant-a', first, [], [judge(), judge()])
+            self.assertEqual(result['grade']['status'], 'PASS')
+            self.assertEqual(platform.lifecycle.get('tenant-b', second)['state'], 'queued')
+        finally:
+            platform.close()
+
+    def test_queued_submission_is_admitted_when_capacity_frees(self):
+        platform = Platform(Path(self.tmp.name) / 'queued', worker_capacity=1,
+                            tenant_worker_capacity=1)
+        try:
+            active = platform.create_session('tenant-a', 'orders-cents')
+            waiting = platform.create_session('tenant-b', 'orders-cents')
+            platform._ensure_admitted('tenant-a', active)
+            with self.assertRaisesRegex(RuntimeError, 'queued for execution'):
+                platform.submit('tenant-b', waiting, [], [judge(), judge()])
+            self.assertEqual(platform.lifecycle.get('tenant-b', waiting)['state'], 'queued')
+
+            current = platform.lifecycle.get('tenant-a', active)
+            platform.lifecycle.transition('tenant-a', active, 'completed',
+                                          'test-completed', current['version'])
+            platform._complete_execution(active)
+            self.assertEqual(platform.lifecycle.get('tenant-b', waiting)['state'], 'running')
+            result = platform.submit('tenant-b', waiting, [], [judge(), judge()])
+            self.assertEqual(result['grade']['status'], 'PASS')
+        finally:
+            platform.close()
+
     def test_borderline_grade_is_reviewable(self):
         session = self.platform.create_session('tenant-a', 'orders-cents')
         result = self.platform.submit('tenant-a', session, [], [judge(0), judge(0)])

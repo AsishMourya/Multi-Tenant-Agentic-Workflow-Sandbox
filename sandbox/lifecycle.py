@@ -76,6 +76,11 @@ class Lifecycle:
             raise
 
     @synchronized
+    def is_enqueued(self, session):
+        return self.db.execute(
+            'SELECT 1 FROM admission WHERE session=?', (session,)).fetchone() is not None
+
+    @synchronized
     def admit_next(self, *, capacity, tenant_capacity=1):
         """Atomically start one queued session using tenant round-robin fairness."""
         if (type(capacity) is not int or capacity < 1 or

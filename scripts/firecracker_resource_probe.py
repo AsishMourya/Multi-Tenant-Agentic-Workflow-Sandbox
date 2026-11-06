@@ -2,6 +2,8 @@
 import argparse
 import json
 import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -11,7 +13,6 @@ from sandbox.firecracker_backend import FirecrackerBackend
 
 CASES = {
     'control': 'import json\nprint(json.dumps({"value": 42}))\n',
-    'cpu_loop': 'while True: pass\n',
     'memory': 'x = bytearray(512 * 1024 * 1024)\nprint(len(x))\n',
     'output': 'print("x" * 200000)\n',
     'wall': 'import time\ntime.sleep(60)\n',
@@ -65,6 +66,59 @@ CASES = {
 }
 
 
+def _timed_run(backend, tenant, session, source):
+    started = time.monotonic()
+    try:
+        result = backend.run_python(tenant, session, source, {})
+    except Exception as exc:
+        result = {'status': 'infrastructure_error',
+                  'error': f'{type(exc).__name__}: {exc}',
+                  'stdout': '', 'stderr': ''}
+    return {'start_monotonic': started, 'end_monotonic': time.monotonic(),
+            'result': result}
+
+
+def cpu_limited_backend(backend):
+    attack_policy = dict(backend.policy)
+    if attack_policy['wall_seconds'] <= 1:
+        raise ValueError('concurrent CPU probe requires wall_seconds greater than one')
+    attack_policy['cpu_seconds'] = min(2, attack_policy['wall_seconds'] - 1)
+    return FirecrackerBackend(
+        backend.root, policy=attack_policy, image=backend.base_disk.name)
+
+
+def concurrent_benign_probe(backend, attack_backend):
+    """Run a bounded CPU stressor beside a low-cost task in another tenant."""
+    cpu_loop = 'while True: pass\n'
+    benign = ('import json, time\n'
+              'time.sleep(2)\n'
+              'print(json.dumps({"value": 42}))\n')
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        attack_future = pool.submit(_timed_run, attack_backend, 'tenant-a',
+                                    'resource-concurrent-cpu', cpu_loop)
+        benign_future = pool.submit(_timed_run, backend, 'tenant-b',
+                                    'resource-concurrent-control', benign)
+        attack = attack_future.result()
+        control = benign_future.result()
+    overlap = max(attack['start_monotonic'], control['start_monotonic']) < min(
+        attack['end_monotonic'], control['end_monotonic'])
+    try:
+        control_output = json.loads(control['result']['stdout'])
+    except (KeyError, TypeError, ValueError):
+        control_output = None
+    checks = {
+        'cpu_limit_enforced': (attack['result']['status'] == 'error'
+                               and attack['result'].get('exit_code') in {-24, -9}),
+        'attack_bounded': attack['result']['status'] in {'error', 'timeout'},
+        'benign_control_ok': control['result']['status'] == 'ok'
+        and control_output == {'value': 42},
+        'runs_overlapped': overlap,
+    }
+    return {'attack': attack, 'benign_control': control,
+            'overlapped': overlap, 'checks': checks,
+            'all_pass': all(checks.values())}
+
+
 def main(args):
     backend = FirecrackerBackend(args.root)
     observations = {}
@@ -76,6 +130,9 @@ def main(args):
             observations[name] = {'status': 'infrastructure_error',
                                   'error': f'{type(exc).__name__}: {exc}',
                                   'stdout': '', 'stderr': ''}
+    concurrent = concurrent_benign_probe(backend, cpu_limited_backend(backend))
+    observations['concurrent_cpu_attack'] = concurrent['attack']['result']
+    observations['concurrent_benign_control'] = concurrent['benign_control']['result']
     parsed = {}
     for name in ('control', 'processes', 'file_size', 'ipv4', 'ipv6', 'dns'):
         try:
@@ -84,7 +141,8 @@ def main(args):
             parsed[name] = None
     checks = {
         'control': observations['control']['status'] == 'ok' and parsed['control'] == {'value': 42},
-        'cpu_limit': observations['cpu_loop']['status'] in {'error', 'timeout'},
+        'cpu_limit': concurrent['checks']['cpu_limit_enforced'],
+        'concurrent_benign_control': concurrent['all_pass'],
         'memory_limit': 'MemoryError' in observations['memory']['stderr'],
         'output_limit': observations['output']['status'] == 'output_limit',
         'wall_limit': observations['wall']['status'] == 'timeout',
@@ -95,8 +153,9 @@ def main(args):
         'dns_denied': bool(parsed['dns'] and parsed['dns']['blocked']),
     }
     result = {'at_utc': datetime.now(timezone.utc).isoformat(),
-              'scope': 'live Firecracker single-session stress; no concurrent benign control',
+              'scope': 'live Firecracker resource stress with concurrent cross-tenant benign control',
               'checks': checks, 'observations': observations,
+              'concurrent_probe': concurrent,
               'all_pass': all(checks.values())}
     path = Path(args.output)
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -4,9 +4,11 @@ It intentionally accepts no tenant field and no client-supplied semantic grades.
 Transport is stdlib-only so the service can run from a clean checkout.
 """
 import json
+import mimetypes
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 
 def bearer(headers):
@@ -51,7 +53,7 @@ class SandboxService:
 
 
 def handler_for(service):
-    dashboard = (Path(__file__).resolve().parents[1] / 'web' / 'index.html')
+    static_root = Path(__file__).resolve().parents[1] / 'web' / 'dist'
     class Handler(BaseHTTPRequestHandler):
         def _body(self):
             length = int(self.headers.get('Content-Length', '0'))
@@ -68,12 +70,37 @@ def handler_for(service):
             self.wfile.write(encoded)
 
         def _send_html(self, content):
-            encoded = content.encode('utf-8')
-            self.send_response(HTTPStatus.OK)
-            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self._send_bytes(HTTPStatus.OK, content.encode('utf-8'),
+                             'text/html; charset=utf-8')
+
+        def _send_bytes(self, status, encoded, content_type):
+            self.send_response(status)
+            self.send_header('Content-Type', content_type)
             self.send_header('Content-Length', str(len(encoded)))
+            self.send_header('X-Content-Type-Options', 'nosniff')
             self.end_headers()
             self.wfile.write(encoded)
+
+        def _static(self):
+            requested = unquote(urlsplit(self.path).path)
+            root = static_root.resolve()
+            candidate = (root / 'index.html' if requested == '/' else
+                         (root / requested.lstrip('/')).resolve())
+            try:
+                candidate.relative_to(root)
+            except ValueError:
+                return self._send(HTTPStatus.NOT_FOUND, {'error': 'not found'})
+            if candidate.is_file():
+                content_type = mimetypes.guess_type(candidate.name)[0] or 'application/octet-stream'
+                if content_type == 'text/html':
+                    content_type += '; charset=utf-8'
+                return self._send_bytes(HTTPStatus.OK, candidate.read_bytes(), content_type)
+            if requested == '/' and not (root / 'index.html').is_file():
+                return self._send_html(
+                    '<!doctype html><meta charset="utf-8"><title>Sandbox Studio setup</title>'
+                    '<div id="root"></div><h1>Sandbox Studio is not built yet</h1>'
+                    '<p>From the WSL repository directory, run <code>./start-demo.sh</code>.</p>')
+            return self._send(HTTPStatus.NOT_FOUND, {'error': 'not found'})
 
         def _dispatch(self):
             credential = bearer(self.headers)
@@ -98,8 +125,8 @@ def handler_for(service):
 
         def _handle(self):
             try:
-                if self.command == 'GET' and self.path == '/':
-                    return self._send_html(dashboard.read_text(encoding='utf-8'))
+                if self.command == 'GET' and not urlsplit(self.path).path.startswith('/v1/'):
+                    return self._static()
                 status, result = self._dispatch()
                 self._send(status, result)
             except PermissionError as exc:

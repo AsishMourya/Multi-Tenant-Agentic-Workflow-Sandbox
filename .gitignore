@@ -1,5 +1,7 @@
 .venv/
 .venv-linux/
+web/node_modules/
+web/dist/
 __pycache__/
 *.pyc
 .pytest_cache/
@@ -19,7 +21,6 @@ config/tenants.demo.json
 *.fls
 *.fdb_latexmk
 *.synctex.gz
-RUNBOOK.md
 SRS.md
 DAT_Group44.pdf
 PROJECT_STATUS.md

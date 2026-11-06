@@ -4,18 +4,28 @@ import hmac
 import json
 import secrets
 import sqlite3
+import threading
 import time
 from datetime import datetime, timezone
+
+
+def synchronized(method):
+    def locked(self, *args, **kwargs):
+        with self._lock:
+            return method(self, *args, **kwargs)
+    return locked
+
 
 def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(',',':'), allow_nan=False)
 
 class Broker:
     def __init__(self, path=':memory:', clock=time.time):
+        self._lock = threading.RLock()
         self.clock = clock
         self.key = secrets.token_bytes(32)  # restart invalidates outstanding tokens
         self.dummy_secret = 'DUMMY_UPSTREAM_CANARY_NOT_A_REAL_SECRET'
-        self.db = sqlite3.connect(path, isolation_level=None)
+        self.db = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
         self.db.executescript('''
         CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY,tenant TEXT,exercise TEXT,epoch INTEGER,state TEXT);
           CREATE TABLE IF NOT EXISTS calls(session TEXT,epoch INTEGER,request TEXT,digest TEXT,result TEXT,
@@ -23,12 +33,15 @@ class Broker:
         CREATE TABLE IF NOT EXISTS audit(at TEXT,tenant TEXT,session TEXT,request TEXT,operation TEXT,outcome TEXT,reason TEXT);
         ''')
 
+    @synchronized
     def register(self, tenant, session, exercise):
         self.db.execute('INSERT INTO sessions VALUES(?,?,?,0,?)',(session,tenant,exercise,'running'))
 
+    @synchronized
     def revoke(self, session, state='paused'):
         self.db.execute('UPDATE sessions SET epoch=epoch+1,state=? WHERE id=?',(state,session))
 
+    @synchronized
     def resume(self, tenant, session, exercise):
         """Re-enable a paused scope after the controller has validated restore state."""
         self.db.execute('BEGIN IMMEDIATE')
@@ -44,6 +57,7 @@ class Broker:
                 self.db.execute('ROLLBACK')
             raise
 
+    @synchronized
     def issue(self, tenant, session, exercise, ttl=60):
         row = self.db.execute('SELECT tenant,exercise,epoch,state FROM sessions WHERE id=?',(session,)).fetchone()
         if not row or (row[0],row[1],row[3]) != (tenant,exercise,'running'): raise PermissionError('scope')
@@ -55,6 +69,7 @@ class Broker:
         payload = canonical(cap)
         return {'cap':cap,'sig':hmac.new(self.key,payload.encode(),hashlib.sha256).hexdigest()}
 
+    @synchronized
     def call(self, principal, token, operation, args, request):
         """principal comes from trusted transport authentication, never submission input."""
         tenant, session, exercise = principal
@@ -93,3 +108,9 @@ class Broker:
         finally:
             self.db.execute('INSERT INTO audit VALUES(?,?,?,?,?,?,?)',(datetime.now(timezone.utc).isoformat(),tenant,session,request,operation,outcome,reason))
             self.db.execute('COMMIT')
+
+    @synchronized
+    def delete_session(self, session):
+        self.db.execute('UPDATE sessions SET epoch=epoch+1,state=? WHERE id=?',
+                        ('deleted', session))
+        self.db.execute('DELETE FROM sessions WHERE id=?', (session,))

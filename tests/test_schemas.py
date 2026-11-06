@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 from jsonschema import Draft202012Validator
 from exercises.python.reference import solve
+from sandbox.firecracker_backend import DEFAULT_POLICY
 
 ROOT=Path(__file__).resolve().parents[1]
 def schema(name): return json.loads((ROOT/f'schemas/{name}.schema.json').read_text())
@@ -31,4 +32,20 @@ class Schemas(unittest.TestCase):
         policy=json.loads((ROOT/'config/policy.json').read_text())
         Draft202012Validator(schema('policy')).validate(policy)
         self.assertEqual(policy['execution']['vcpu_count'],1)
+        execution=policy['execution']
+        self.assertEqual(execution['memory_mib'],512)
+        self.assertEqual(execution['cpu_seconds'],15)
+        self.assertEqual(execution['address_space_mib'],256)
+        self.assertEqual(execution['wall_seconds'],15)
+        self.assertEqual(execution['snapshot_wall_seconds'],120)
+        self.assertEqual({
+            'vcpu_count': execution['vcpu_count'],
+            'mem_size_mib': execution['memory_mib'],
+            'cpu_seconds': execution['cpu_seconds'],
+            'address_bytes': execution['address_space_mib'] * 1024 * 1024,
+            'processes': execution['process_count'],
+            'output_bytes': execution['output_bytes'],
+            'wall_seconds': execution['wall_seconds'],
+            'snapshot_wall_seconds': execution['snapshot_wall_seconds'],
+        },DEFAULT_POLICY)
         self.assertEqual(policy['grading']['deterministic_weight']+policy['grading']['semantic_weight'],1)

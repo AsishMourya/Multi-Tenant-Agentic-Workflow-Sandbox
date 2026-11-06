@@ -6,7 +6,17 @@
       "family": "keep-related-variants-together",
       "human_ratings": [true, false],
       "adjudicated_correct": true,
-      "automated_status": "REVIEW"
+      "automated_status": "REVIEW",
+      "adjudicated_criteria": null,
+      "automated_criteria": null,
+      "run_metrics": [
+        {
+          "judge_calls": null,
+          "end_to_end_latency_ms": null,
+          "inference_memory_mb": null,
+          "cost_usd": null
+        }
+      ]
     }
   ]
 }

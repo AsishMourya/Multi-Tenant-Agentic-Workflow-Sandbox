@@ -15,7 +15,7 @@ class TenantGatewayTests(unittest.TestCase):
                                                'tenant-c': 'c' * 32})
             try:
                 session = gateway.create('a' * 32, 'orders-cents')
-                self.assertEqual(gateway.status('a' * 32, session)['state'], 'running')
+                self.assertEqual(gateway.status('a' * 32, session)['state'], 'queued')
                 with self.assertRaises(PermissionError):
                     gateway.status('b' * 32, session)
                 other = gateway.create('c' * 32, 'orders-cents')

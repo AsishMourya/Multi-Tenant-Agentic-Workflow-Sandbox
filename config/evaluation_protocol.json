@@ -46,9 +46,13 @@
       "review_rate = human review decisions / all submissions",
       "judge_calls_per_submission",
       "end_to_end_latency_ms",
-      "inference_memory_mb"
+      "inference_memory_mb",
+      "cost_usd"
     ],
-    "denominator_rule": "report numerator and denominator for every rate; exclude infrastructure RETRY_ERROR only when separately reported"
+    "semantic_error_inputs": "per-submission adjudicated_criteria and automated_criteria maps with matching applicable criterion names and integer levels 0..4",
+    "performance_inputs": "run_metrics records judge_calls, end_to_end_latency_ms, inference_memory_mb, and cost_usd for each measured repeat",
+    "denominator_rule": "report numerator and denominator for every rate; exclude infrastructure RETRY_ERROR from grading rates only when separately reported",
+    "uncertainty_rule": "report 95% bootstrap confidence intervals resampling submissions for rates, semantic MAE, and available performance means"
   },
   "local_judge_feasibility": {
     "required_now": true,
