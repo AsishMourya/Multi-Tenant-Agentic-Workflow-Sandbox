@@ -19,6 +19,13 @@ class TenantGateway:
         self.platform = platform
         self.digests = {tenant: hashlib.sha256(token.encode()).digest()
                         for tenant, token in credentials.items()}
+        self.session_digests = {}
+
+    def bind_browser_session(self, tenant, token):
+        """Bind a verified opaque browser session to its server-owned tenant."""
+        if not isinstance(tenant, str) or not isinstance(token, str):
+            raise PermissionError('invalid session')
+        self.session_digests[hashlib.sha256(token.encode()).digest()] = tenant
 
     def _tenant(self, bearer):
         if not isinstance(bearer, str):
@@ -27,6 +34,9 @@ class TenantGateway:
         for tenant, expected in self.digests.items():
             if hmac.compare_digest(digest, expected):
                 return tenant
+        tenant = self.session_digests.get(digest)
+        if tenant is not None:
+            return tenant
         raise PermissionError('invalid credential')
 
     def create(self, bearer, exercise):

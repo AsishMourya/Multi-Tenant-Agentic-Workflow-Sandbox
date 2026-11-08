@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import tempfile
 import threading
@@ -9,6 +10,8 @@ from exercises.python.reference import solve
 from sandbox.firecracker_backend import BackendUnavailable
 from sandbox.local_judge import JudgeUnavailable
 from sandbox.platform import Platform
+from exercises.python.daily_revenue.reference import solve as solve_daily_revenue
+from sandbox.deterministic_runner import solve_python
 
 
 class RecordingBackend:
@@ -79,6 +82,31 @@ class BlockingBackend:
                 raise TimeoutError('test backend release was not signalled')
         return {'status': 'ok', 'stdout': json.dumps(solve(payload)),
                 'stderr': '', 'exit_code': 0}
+
+class RegistryBackend:
+    def run_python(self, _tenant, _session, _source, payload):
+        return {'status': 'ok', 'stdout': json.dumps(solve_daily_revenue(payload)),
+                'stderr': '', 'exit_code': 0}
+
+    def run_workflow(self, _tenant, _session, source, payload, broker_call,
+                     on_pause, on_resume):
+        request = {'operation': 'inventory.lookup', 'args': {'sku': payload['sku']},
+                   'request': 'lookup-1'}
+        available = broker_call(request)['available']
+        on_pause({'snapshot': True})
+        on_resume()
+        broker_call(request)
+        exercise = source
+        reference_path = (Path(__file__).resolve().parents[1] / 'exercises' / 'workflow'
+                          / ('reference.py' if exercise == 'inventory' else exercise)
+                          / 'reference.py')
+        spec = importlib.util.spec_from_file_location(
+            'workflow_' + exercise.replace('-', '_'), reference_path)
+        reference = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(reference)
+        output = reference.solve(payload, available)
+        return {'status': 'ok', 'stdout': json.dumps(output), 'stderr': '', 'exit_code': 0,
+                'snapshot': {'compute_released': True, 'restored': True}}
 
 
 def judge():
@@ -236,6 +264,32 @@ class IsolatedSubmissionContract(unittest.TestCase):
             self.assertEqual(backend.calls, 5)
         finally:
             backend.release.set()
+            platform.close()
+
+    def test_new_python_and_workflow_exercises_are_registered_and_graded(self):
+        platform = Platform(Path(self.tmp.name) / 'platform', backend=RegistryBackend())
+        try:
+            python_session = platform.create_session('tenant-a', 'daily-revenue')
+            daily = {'sales': [{'day': '2026-01-01', 'amount_cents': 125}]}
+            python_result = platform.submit_code('tenant-a', python_session, 'student source',
+                                                  daily, [judge(), judge()])
+            self.assertEqual(python_result['output']['total_cents'], 125)
+            self.assertEqual(python_result['grade']['status'], 'PASS')
+
+            cases = [
+                ('stock-reorder', {'sku': 'apple', 'target_quantity': 10}),
+                ('inventory-brief', {'sku': 'pear', 'quantity': 4}),
+                ('order-explainer', {'sku': 'apple', 'quantity': 2, 'unit_cents': 125}),
+            ]
+            for tenant_index, (exercise, payload) in enumerate(cases):
+                tenant = f'tenant-workflow-{tenant_index}'
+                session = platform.create_session(tenant, exercise)
+                result = platform.submit_workflow_code(tenant, session, exercise, payload,
+                                                       [judge(), judge()])
+                self.assertEqual(result['grade']['status'], 'PASS', exercise)
+                self.assertTrue(result['execution']['snapshot']['restored'])
+                self.assertEqual(len(result['trace']), 3)
+        finally:
             platform.close()
 
     def test_judge_infrastructure_failure_records_retry_and_releases_worker(self):

@@ -23,10 +23,17 @@ for the short demo walkthrough and troubleshooting.
 
 ## Exercises
 
-- **Python sandbox — `orders-cents`:** aggregate synthetic order lines and verify
-  totals against deterministic checks.
-- **Agent workflow — `inventory`:** run a small LangGraph flow that looks up
-  synthetic inventory through one tenant/session-scoped mock broker tool.
+- **Python - `orders-cents`:** aggregate order totals in integer cents.
+- **Python - `daily-revenue`:** group daily revenue totals in integer cents.
+- **Workflow - `inventory`:** check stock with one scoped mock lookup.
+- **Workflow - `stock-reorder`:** calculate a reorder amount from the lookup.
+- **Agent - `inventory-brief`:** produce a short evidence-backed availability brief.
+- **Agent - `order-explainer`:** explain order cost alongside stock availability.
+
+All six IDs have manifests, references, schemas, and deterministic contract checks.
+Live Firecracker end-to-end evidence currently covers the original `orders-cents`
+and `inventory` exercises; the other four have controller integration coverage but
+still need live guest demonstrations.
 
 The browser never chooses a tenant ID directly. It sends a bearer token; the
 control plane derives the tenant, owns the tool capability, and records the

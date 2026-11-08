@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0.0",
+  "exercise_id": "daily-revenue",
+  "exercise_version": "1.0.0",
+  "mode": "python",
+  "runtime": {"python": "3.12", "langgraph": null, "image_id": "firecracker-wsl-2026-10-16-v2"},
+  "task": "Aggregate daily synthetic revenue using integer cents and explain the totals.",
+  "input_schema": "../../../schemas/daily-revenue-input.schema.json",
+  "output_schema": "../../../schemas/daily-revenue-output.schema.json",
+  "reference": "reference.py",
+  "hidden_tests": {"deployment": "trusted grader store only; never student image", "cases": ["empty sales", "repeated dates", "multiple dates", "invalid and bounded amounts"]},
+  "mandatory_invariants": ["valid bounded input", "output schema valid", "totals match trusted cases", "no policy violation"],
+  "deterministic_weights": {"daily_totals": 0.6, "schema_and_edge_cases": 0.4},
+  "rubric": {
+    "version": "1.0.0", "weights": {"correctness": 0.5, "clarity": 0.5},
+    "criteria": {
+      "correctness": {"0": "Absent or contradicts observed values", "1": "Major numerical or factual errors", "2": "Partly correct with a material omission", "3": "Correct with a minor omission", "4": "Complete and supported by observed totals"},
+      "clarity": {"0": "No interpretable explanation", "1": "Mostly unclear", "2": "Understandable but units or grouping are ambiguous", "3": "Clear with minor ambiguity", "4": "Concise, explicit currency units and traceable grouping"}
+    }
+  },
+  "grading": {"protocol_version": "exercise-grade-1.0.0", "formula": "100*(0.6*D+0.4*S)", "pass_threshold": 60, "judgments_required": 2},
+  "submission_bounds": {"explanation_characters": 8000, "output_bytes": 65536, "wall_seconds": 15},
+  "versions": {"test_suite": "1.0.0", "rubric": "1.0.0", "prompt": "w1-rubric-1", "model": "UNCONFIGURED"}
+}

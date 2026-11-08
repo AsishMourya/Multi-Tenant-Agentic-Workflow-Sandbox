@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0.0",
+  "exercise_id": "inventory-brief",
+  "exercise_version": "1.0.0",
+  "mode": "workflow",
+  "runtime": {"python": "3.12", "langgraph": "1.2.2", "image_id": "firecracker-wsl-2026-10-16-v2"},
+  "task": "Look up inventory and produce a concise evidence-backed stock sufficiency brief.",
+  "input_schema": "../../../schemas/workflow-input.schema.json",
+  "output_schema": "../../../schemas/inventory-brief-output.schema.json",
+  "reference": "reference.py",
+  "hidden_tests": {"deployment": "trusted grader store only; never student image", "cases": ["sufficient stock", "short stock", "invalid input causes no tool call", "one lookup and restored state"]},
+  "mandatory_invariants": ["valid bounded input", "output schema valid", "decision matches observed availability", "lookup exactly once", "checkpoint restored"],
+  "deterministic_weights": {"decision_and_schema": 0.4, "authorized_tool_trace": 0.3, "checkpoint_continuity": 0.3},
+  "rubric": {"version": "1.0.0", "weights": {"correctness": 0.5, "clarity": 0.5}, "criteria": {"correctness": {"0": "Absent or contradicts observed inventory", "1": "Major factual errors", "2": "Partly correct with a material omission", "3": "Correct with a minor omission", "4": "Accurate and fully supported by the tool result"}, "clarity": {"0": "No interpretable brief", "1": "Mostly unclear", "2": "Understandable but requested/available counts are unclear", "3": "Clear with minor ambiguity", "4": "Concise and explicit about request, availability, and decision"}}},
+  "grading": {"protocol_version": "exercise-grade-1.0.0", "formula": "100*(0.6*D+0.4*S)", "pass_threshold": 60, "judgments_required": 2},
+  "submission_bounds": {"explanation_characters": 8000, "output_bytes": 65536, "wall_seconds": 15},
+  "versions": {"test_suite": "1.0.0", "rubric": "1.0.0", "prompt": "w1-rubric-1", "model": "UNCONFIGURED"}
+}

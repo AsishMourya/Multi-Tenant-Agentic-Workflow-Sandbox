@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dat:daily-revenue-input:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "sales": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "day": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+          "amount_cents": {"type": "integer", "minimum": 0, "maximum": 100000000}
+        },
+        "required": ["day", "amount_cents"]
+      }
+    }
+  },
+  "required": ["sales"]
+}

@@ -5,6 +5,8 @@ Transport is stdlib-only so the service can run from a clean checkout.
 """
 import json
 import mimetypes
+import traceback
+from http.cookies import SimpleCookie
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -20,10 +22,37 @@ def bearer(headers):
 
 
 class SandboxService:
-    def __init__(self, gateway, *, judge_provider=None):
+    def __init__(self, gateway, *, judge_provider=None, auth=None):
         self.gateway = gateway
         # Server-owned provider only. Browser payloads never influence it.
         self.judge_provider = judge_provider
+        self.auth = auth
+
+    def sign_up(self, body):
+        if self.auth is None:
+            raise RuntimeError('local registration is unavailable')
+        token, tenant, _ = self.auth.register(body['username'], body['password'])
+        self.gateway.bind_browser_session(tenant, token)
+        return token, {'username': body['username']}
+
+    def sign_in(self, body):
+        if self.auth is None:
+            raise RuntimeError('local sign-in is unavailable')
+        token, tenant, _ = self.auth.login(body['username'], body['password'])
+        self.gateway.bind_browser_session(tenant, token)
+        return token, {'username': body['username']}
+
+    def cookie_credential(self, header):
+        if self.auth is None:
+            raise PermissionError('bearer credential required')
+        cookies = SimpleCookie(); cookies.load(header or '')
+        morsel = cookies.get('sandbox_session')
+        if morsel is None:
+            raise PermissionError('sign in required')
+        token = morsel.value
+        tenant = self.auth.tenant_for(token)
+        self.gateway.bind_browser_session(tenant, token)
+        return token
 
     def create(self, credential, body):
         return {'session': self.gateway.create(credential, body['exercise'])}
@@ -61,11 +90,13 @@ def handler_for(service):
                 raise ValueError('invalid request size')
             return json.loads(self.rfile.read(length))
 
-        def _send(self, status, data):
+        def _send(self, status, data, headers=None):
             encoded = json.dumps(data).encode()
             self.send_response(status)
             self.send_header('Content-Type', 'application/json')
             self.send_header('Content-Length', str(len(encoded)))
+            for name, value in (headers or {}).items():
+                self.send_header(name, value)
             self.end_headers()
             self.wfile.write(encoded)
 
@@ -103,8 +134,17 @@ def handler_for(service):
             return self._send(HTTPStatus.NOT_FOUND, {'error': 'not found'})
 
         def _dispatch(self):
-            credential = bearer(self.headers)
             parts = self.path.strip('/').split('/')
+            if self.command == 'POST' and parts == ['v1', 'auth', 'register']:
+                token, result = service.sign_up(self._body())
+                return HTTPStatus.CREATED, result, token
+            if self.command == 'POST' and parts == ['v1', 'auth', 'login']:
+                token, result = service.sign_in(self._body())
+                return HTTPStatus.OK, result, token
+            try:
+                credential = bearer(self.headers)
+            except PermissionError:
+                credential = service.cookie_credential(self.headers.get('Cookie'))
             if self.command == 'POST' and parts == ['v1', 'sessions']:
                 return HTTPStatus.CREATED, service.create(credential, self._body())
             if len(parts) >= 3 and parts[:2] == ['v1', 'sessions']:
@@ -127,7 +167,12 @@ def handler_for(service):
             try:
                 if self.command == 'GET' and not urlsplit(self.path).path.startswith('/v1/'):
                     return self._static()
-                status, result = self._dispatch()
+                dispatched = self._dispatch()
+                if len(dispatched) == 3:
+                    status, result, token = dispatched
+                    return self._send(status, result, {'Set-Cookie':
+                        f'sandbox_session={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200'})
+                status, result = dispatched
                 self._send(status, result)
             except PermissionError as exc:
                 self._send(HTTPStatus.FORBIDDEN, {'error': str(exc)})
@@ -135,6 +180,14 @@ def handler_for(service):
                 self._send(HTTPStatus.BAD_REQUEST, {'error': str(exc)})
             except RuntimeError as exc:
                 self._send(HTTPStatus.CONFLICT, {'error': str(exc)})
+            except Exception:
+                # A backend failure must be observable to the browser as an
+                # infrastructure error, not as a dropped connection. Keep the
+                # traceback on the trusted server console and avoid exposing
+                # host paths or implementation details to learner clients.
+                traceback.print_exc()
+                self._send(HTTPStatus.INTERNAL_SERVER_ERROR,
+                           {'error': 'internal infrastructure error'})
 
         do_GET = _handle
         do_POST = _handle

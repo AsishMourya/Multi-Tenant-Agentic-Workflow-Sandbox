@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dat:daily-revenue-output:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "by_day": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "total_cents": {"type": "integer", "minimum": 0}
+  },
+  "required": ["by_day", "total_cents"]
+}

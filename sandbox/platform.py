@@ -13,11 +13,11 @@ from datetime import datetime, timezone
 from functools import wraps
 from pathlib import Path
 
-from exercises.python.reference import solve
 from exercises.workflow.reference import build
 from sandbox.broker import Broker
-from sandbox.agent_grading import grade_inventory_agent
-from sandbox.deterministic_runner import grade_orders_submission
+from sandbox.agent_grading import grade_workflow_agent
+from sandbox.deterministic_runner import grade_python_submission, solve_python
+from sandbox.exercise_registry import EXERCISES, PYTHON_EXERCISES, WORKFLOW_EXERCISES
 from sandbox.firecracker_backend import BackendUnavailable
 from sandbox.grading import decision
 from sandbox.lifecycle import Lifecycle
@@ -25,7 +25,6 @@ from sandbox.local_judge import JudgeUnavailable
 from sandbox.state import StateStore
 
 
-EXERCISES = frozenset({'orders-cents', 'inventory'})
 RUNTIME_IMAGE = 'w1-trusted-fixture-only'
 
 
@@ -104,7 +103,7 @@ class Platform:
         self.lifecycle.create(tenant, session)
         self.db.execute('INSERT INTO submissions(session,tenant,exercise) VALUES(?,?,?)',
                         (session, tenant, exercise))
-        if exercise == 'inventory':
+        if exercise in WORKFLOW_EXERCISES:
             self.broker.register(tenant, session, exercise)
         self.sessions[session] = {'tenant': tenant, 'exercise': exercise}
         return session
@@ -181,15 +180,17 @@ class Platform:
     def submit(self, tenant, session, payload, judges):
         record = self._owned(tenant, session)
         self._ensure_admitted(tenant, session)
-        if record['exercise'] == 'orders-cents':
-            output = solve(payload)
+        if record['exercise'] in PYTHON_EXERCISES:
+            output = solve_python(record['exercise'], payload)
             deterministic = 1.0
             invariant_ok = True
             trace = [{'check': 'trusted reference output', 'passed': True}]
-        else:
+        elif record['exercise'] == 'inventory':
             output, trace = self._submit_inventory(tenant, session, payload)
             deterministic = 1.0 if output.get('accepted') is not None else 0.0
             invariant_ok = len(trace) == 1 and trace[0]['operation'] == 'inventory.lookup'
+        else:
+            raise ValueError('use the isolated submission endpoint for this exercise')
         grade = self._grade(tenant, session, record['exercise'], payload, output,
                             deterministic, invariant_ok, judges, trace)
         self.grades.append(grade)
@@ -252,8 +253,8 @@ class Platform:
         """
         record = self._owned(tenant, session)
         self._ensure_admitted(tenant, session)
-        if record['exercise'] != 'orders-cents':
-            raise ValueError('workflow guest submissions are not integrated')
+        if record['exercise'] not in PYTHON_EXERCISES:
+            raise ValueError('Python session required')
         if self.backend is None:
             raise RuntimeError('isolated backend is required for learner code')
         def on_pause(manifest):
@@ -297,7 +298,7 @@ class Platform:
             except (TypeError, ValueError):
                 pass
         try:
-            expected = solve(payload)
+            expected = solve_python(record['exercise'], payload)
         except (TypeError, ValueError, KeyError):
             expected = None
         correct = output is not None and expected is not None and output == expected
@@ -310,7 +311,7 @@ class Platform:
                       'weight': 1.0, 'passed': correct,
                       'execution_status': execution['status']}]
         else:
-            hidden = grade_orders_submission(
+            hidden = grade_python_submission(record['exercise'],
                 lambda case: self.backend.run_python(tenant, session, source, case))
             deterministic = hidden['score']
             invariant_ok = correct and hidden['invariants_ok']
@@ -349,15 +350,16 @@ class Platform:
         """Run learner LangGraph source with one host-scoped mock tool call."""
         record = self._owned(tenant, session)
         self._ensure_admitted(tenant, session)
-        if record['exercise'] != 'inventory':
-            raise ValueError('inventory session required')
+        if record['exercise'] not in WORKFLOW_EXERCISES:
+            raise ValueError('workflow session required')
         if self.backend is None:
             raise RuntimeError('isolated backend is required for learner code')
-        token = self.broker.issue(tenant, session, 'inventory')
+        exercise = record['exercise']
+        token = self.broker.issue(tenant, session, exercise)
         effects = []
 
         def call(request):
-            result = self.broker.call((tenant, session, 'inventory'), token,
+            result = self.broker.call((tenant, session, exercise), token,
                                       request['operation'], request['args'], request['request'])
             if not any(item['request'] == request['request'] for item in effects):
                 effects.append({'operation': request['operation'], 'request': request['request'],
@@ -379,8 +381,8 @@ class Platform:
             current = self.lifecycle.get(tenant, session)
             self.lifecycle.transition(tenant, session, 'restoring',
                                       'vm-resume', current['version'])
-            self.broker.resume(tenant, session, 'inventory')
-            token = self.broker.issue(tenant, session, 'inventory')
+            self.broker.resume(tenant, session, exercise)
+            token = self.broker.issue(tenant, session, exercise)
             current = self.lifecycle.get(tenant, session)
             self.lifecycle.transition(tenant, session, 'running',
                                       'vm-restored', current['version'])
@@ -390,7 +392,7 @@ class Platform:
                                                   call, on_pause, on_resume)
         except BackendUnavailable:
             self.broker.revoke(session, state='failed')
-            return self._backend_unavailable(tenant, session, 'inventory',
+            return self._backend_unavailable(tenant, session, exercise,
                                              payload, source, judges)
         except Exception:
             self.broker.revoke(session, state='failed')
@@ -410,11 +412,11 @@ class Platform:
                 output = json.loads(execution['stdout'])
             except (TypeError, ValueError):
                 pass
-        agent_grade = grade_inventory_agent(payload, output, effects, execution)
+        agent_grade = grade_workflow_agent(exercise, payload, output, effects, execution)
         trace = agent_grade['results']
         judge_error = None
         try:
-            judgments = self._resolve_judgments(judges, {'exercise': 'inventory',
+            judgments = self._resolve_judgments(judges, {'exercise': exercise,
                 'payload': payload, 'output': output, 'deterministic_results': trace,
                 'tool_effects': effects})
         except JudgeUnavailable as exc:
@@ -422,7 +424,7 @@ class Platform:
             judge_error = str(exc)
             trace.append({'check': 'semantic judge availability', 'passed': False,
                           'error': judge_error})
-        grade = self._grade(tenant, session, 'inventory', payload, output,
+        grade = self._grade(tenant, session, exercise, payload, output,
                             agent_grade['score'], agent_grade['invariants_ok'], judgments, trace,
                             runtime_image_digest=execution.get('runtime_image_digest'),
                             policy_ok=execution['status'] not in {'timeout', 'output_limit'},
@@ -508,7 +510,7 @@ class Platform:
             'deterministic_results': trace,
             'mandatory_invariants_ok': invariant_ok, 'judgments': judges,
             'score': result['score'], 'status': result['status'], 'review_history': [],
-            'metrics': {'application_state_checkpoint': exercise == 'inventory'
+            'metrics': {'application_state_checkpoint': exercise in WORKFLOW_EXERCISES
                         and runtime_image_digest is None}
         }
 

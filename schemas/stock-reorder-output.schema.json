@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dat:stock-reorder-output:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "sku": {"type": "string", "enum": ["apple", "pear"]},
+    "target_quantity": {"type": "integer", "minimum": 0, "maximum": 100},
+    "available": {"type": "integer", "minimum": 0},
+    "reorder_quantity": {"type": "integer", "minimum": 0},
+    "explanation": {"type": "string", "minLength": 1, "maxLength": 2000}
+  },
+  "required": ["sku", "target_quantity", "available", "reorder_quantity", "explanation"]
+}

@@ -32,7 +32,9 @@
     "held_out_count": 40,
     "split_unit": "submission family; no family may cross calibration and held-out sets",
     "labels": "two independent human ratings retained unchanged, plus separate adjudicated label",
-    "status": "not yet collected; do not fabricate labels or split assignments"
+    "status": "submission bank and human labels pending; split utility implemented",
+    "split_utility": "scripts/prepare_evaluation.py",
+    "split_output_contains_labels": false
   },
   "metrics": {
     "repeats_per_pipeline": 3,

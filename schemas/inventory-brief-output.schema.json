@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dat:inventory-brief-output:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "sku": {"type": "string", "enum": ["apple", "pear"]},
+    "quantity": {"type": "integer", "minimum": 0, "maximum": 100},
+    "available": {"type": "integer", "minimum": 0},
+    "accepted": {"type": "boolean"},
+    "summary": {"type": "string", "minLength": 1, "maxLength": 2000}
+  },
+  "required": ["sku", "quantity", "available", "accepted", "summary"]
+}

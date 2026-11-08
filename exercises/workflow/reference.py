@@ -10,6 +10,18 @@ class State(TypedDict, total=False):
     accepted: bool
     explanation: str
 
+
+def solve(payload, available):
+    if (not isinstance(payload, dict) or set(payload) != {'sku', 'quantity'}
+            or payload['sku'] not in {'apple', 'pear'}
+            or type(payload['quantity']) is not int or not 0 <= payload['quantity'] <= 100
+            or type(available) is not int or available < 0):
+        raise ValueError('input')
+    accepted = payload['quantity'] <= available
+    return {'sku': payload['sku'], 'quantity': payload['quantity'],
+            'available': available, 'accepted': accepted,
+            'explanation': f"Requested {payload['quantity']}; available {available}; accepted {accepted}."}
+
 def build(broker_call, checkpointer=None):
     def validate(s):
         if s['sku'] not in {'apple','pear'} or type(s['quantity']) is not int or not 0 <= s['quantity'] <=100: raise ValueError('input')

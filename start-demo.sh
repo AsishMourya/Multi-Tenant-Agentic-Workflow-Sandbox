@@ -40,7 +40,7 @@ echo
 echo "Checking WSL/KVM readiness. The dashboard can still open if KVM is unavailable;"
 echo "real learner-code execution requires working KVM and /root/dat-backend artifacts."
 sudo -H env PYTHONNOUSERSITE=1 .venv-linux/bin/python scripts/feasibility.py \
-  --output /tmp/dat-sandbox-preflight.json || true
+  --backend-root /root/dat-backend --output /tmp/dat-sandbox-preflight.json || true
 echo
 echo "Starting the local API. Keep this terminal open; press Ctrl+C to stop."
 exec sudo -H env PYTHONNOUSERSITE=1 .venv-linux/bin/python scripts/serve.py \

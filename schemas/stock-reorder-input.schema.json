@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dat:stock-reorder-input:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "sku": {"type": "string", "enum": ["apple", "pear"]},
+    "target_quantity": {"type": "integer", "minimum": 0, "maximum": 100}
+  },
+  "required": ["sku", "target_quantity"]
+}

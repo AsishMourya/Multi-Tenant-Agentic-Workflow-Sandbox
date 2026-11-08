@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0.0",
+  "exercise_id": "stock-reorder",
+  "exercise_version": "1.0.0",
+  "mode": "workflow",
+  "runtime": {"python": "3.12", "langgraph": "1.2.2", "image_id": "firecracker-wsl-2026-10-16-v2"},
+  "task": "Use one authorized inventory lookup and calculate the reorder quantity needed to reach a target.",
+  "input_schema": "../../../schemas/stock-reorder-input.schema.json",
+  "output_schema": "../../../schemas/stock-reorder-output.schema.json",
+  "reference": "reference.py",
+  "hidden_tests": {"deployment": "trusted grader store only; never student image", "cases": ["below target", "at target", "above target", "invalid target causes no tool call", "one lookup and restored state"]},
+  "mandatory_invariants": ["valid bounded input", "output schema valid", "lookup exactly once", "reorder arithmetic correct", "checkpoint restored", "thread bound to tenant/session"],
+  "deterministic_weights": {"reorder_result": 0.4, "authorized_tool_trace": 0.3, "checkpoint_continuity": 0.3},
+  "rubric": {"version": "1.0.0", "weights": {"correctness": 0.5, "clarity": 0.5}, "criteria": {"correctness": {"0": "Absent or contradicts observed result", "1": "Major arithmetic or tool-claim errors", "2": "Partly correct with a material omission", "3": "Correct with a minor omission", "4": "Complete and supported by lookup evidence"}, "clarity": {"0": "No interpretable explanation", "1": "Mostly unclear", "2": "Understandable but target or units are unclear", "3": "Clear with minor ambiguity", "4": "Concise and explicit about target, available, and reorder units"}}},
+  "grading": {"protocol_version": "exercise-grade-1.0.0", "formula": "100*(0.6*D+0.4*S)", "pass_threshold": 60, "judgments_required": 2},
+  "submission_bounds": {"explanation_characters": 8000, "output_bytes": 65536, "wall_seconds": 15},
+  "versions": {"test_suite": "1.0.0", "rubric": "1.0.0", "prompt": "w1-rubric-1", "model": "UNCONFIGURED"}
+}

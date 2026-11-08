@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dat:order-explainer-output:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "sku": {"type": "string", "enum": ["apple", "pear"]},
+    "quantity": {"type": "integer", "minimum": 0, "maximum": 100},
+    "unit_cents": {"type": "integer", "minimum": 0, "maximum": 100000},
+    "available": {"type": "integer", "minimum": 0},
+    "subtotal_cents": {"type": "integer", "minimum": 0},
+    "accepted": {"type": "boolean"},
+    "explanation": {"type": "string", "minLength": 1, "maxLength": 2000}
+  },
+  "required": ["sku", "quantity", "unit_cents", "available", "subtotal_cents", "accepted", "explanation"]
+}

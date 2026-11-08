@@ -11,6 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sandbox.api import SandboxService, serve
+from sandbox.auth import LocalAuth
 from sandbox.firecracker_backend import FirecrackerBackend
 from sandbox.local_judge import OllamaJudge
 from sandbox.platform import Platform
@@ -41,7 +42,8 @@ def main(args):
         judge = OllamaJudge(args.judge_model)
         judge_provider = lambda evidence: judge.judge(evidence['exercise'], evidence)
     try:
-        serve(SandboxService(gateway, judge_provider=judge_provider), host=args.host, port=args.port)
+        auth = LocalAuth(Path(args.state_root) / 'auth.sqlite3')
+        serve(SandboxService(gateway, judge_provider=judge_provider, auth=auth), host=args.host, port=args.port)
     except KeyboardInterrupt:
         pass
     finally:

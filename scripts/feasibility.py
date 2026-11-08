@@ -37,7 +37,26 @@ def memory_kib():
     return None
 
 
-def main(output):
+def backend_artifacts(root):
+    """Report the pinned runtime that the dashboard will actually use.
+
+    ``shutil.which`` only sees PATH entries, whereas the demo deliberately keeps
+    its Firecracker binary in a private backend directory. Reporting both avoids
+    a false "unavailable" warning on an otherwise runnable host.
+    """
+    root = Path(root).resolve()
+    names = {
+        'firecracker': 'firecracker',
+        'kernel': 'vmlinux-6.1.188',
+        'guest_image': 'ubuntu-langgraph-2026-10-16-v2.ext4',
+    }
+    return {
+        name: {'path': str(root / filename), 'present': (root / filename).is_file()}
+        for name, filename in names.items()
+    }
+
+
+def main(output, backend_root='/root/dat-backend'):
     started = time.monotonic()
     child = subprocess.run([sys.executable, '-c', 'print(6 * 7)'],
                            capture_output=True, text=True, timeout=10)
@@ -52,6 +71,7 @@ def main(output):
                    'child_stderr': child.stderr.strip()},
         'kvm': kvm_probe() if platform.system() == 'Linux' else {'status': 'Linux only'},
         'tools': {name: shutil.which(name) for name in ('firecracker', 'jailer', 'docker')},
+        'backend_artifacts': backend_artifacts(backend_root),
         'cgroup_v2': Path('/sys/fs/cgroup/cgroup.controllers').is_file(),
         'elapsed_seconds': round(time.monotonic() - started, 3),
     }
@@ -65,5 +85,6 @@ def main(output):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', required=True)
+    parser.add_argument('--backend-root', default='/root/dat-backend')
     args = parser.parse_args()
-    raise SystemExit(main(args.output))
+    raise SystemExit(main(args.output, args.backend_root))
