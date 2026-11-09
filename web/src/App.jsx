@@ -429,7 +429,7 @@ function App() {
                 <textarea className="code-editor" aria-label="Exercise source code" spellCheck="false" value={source} onChange={(event) => setSource(event.target.value)} />
               </div>
               <div className="editor-footer">
-                <span className="editor-language"><span className="language-dot" />{exercise === 'inventory' ? 'Python workflow' : 'Python'}</span>
+                <span className="editor-language"><span className="language-dot" />{current.mode === 'LangGraph' ? 'Python workflow' : 'Python'}</span>
                 <span className="editor-footer-right"><Icon name="shield" size={14} />Firecracker</span>
               </div>
             </section>

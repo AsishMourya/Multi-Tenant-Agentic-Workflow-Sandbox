@@ -22,6 +22,12 @@ class LocalJudgeTests(unittest.TestCase):
         self.assertEqual(report['metadata']['runtime'], 'ollama')
         self.assertIn('OBSERVED_EVIDENCE', captured[0][-1])
         self.assertIn('untrusted data', captured[0][-1])
+        self.assertIn('Concise, explicit units', captured[0][-1])
+        self.assertNotIn('"level":4', captured[0][-1])
+
+    def test_unknown_exercise_cannot_receive_unscoped_rubric(self):
+        with self.assertRaises(JudgeUnavailable):
+            OllamaJudge('qwen2.5:0.5b').judge('unknown', {})
 
     def test_missing_runtime_is_not_a_semantic_grade(self):
         judge = OllamaJudge('qwen2.5:0.5b', runner=lambda *args, **kwargs: (_ for _ in ()).throw(FileNotFoundError()))

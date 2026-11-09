@@ -1,5 +1,6 @@
 """Live guest resource and direct-network denial checks."""
 import argparse
+import errno
 import json
 import sys
 import time
@@ -36,6 +37,25 @@ CASES = {
         'except OSError:\n'
         '    blocked=True\n'
         'print(json.dumps({"blocked": blocked}))\n'
+    ),
+    'aggregate_disk': (
+        'import json, os\n'
+        'paths=("/tmp", "/var/tmp", "/dev/shm")\n'
+        'chunk=b"x" * 32768\ncreated=0\nblocked=False\nerror=None\n'
+        'try:\n'
+        '    for index in range(1200):\n'
+        '        path=paths[index % len(paths)] + "/disk-" + str(index)\n'
+        '        with open(path, "wb") as file: file.write(chunk)\n'
+        '        created += 1\n'
+        'except OSError as exc:\n'
+        '    blocked=True\n'
+        '    error={"path": path, "errno": exc.errno}\n'
+        '    for old in range(max(0, created-32), created):\n'
+        '        os.unlink(paths[old % len(paths)] + "/disk-" + str(old))\n'
+        'print(json.dumps({"blocked": blocked, "created": created, "error": error, '
+        '"root_read_only": bool(os.statvfs("/").f_flag & os.ST_RDONLY), '
+        '"scratch_bytes": os.statvfs("/tmp").f_blocks * os.statvfs("/tmp").f_frsize, '
+        '"shared_scratch": len({os.stat(path).st_dev for path in paths}) == 1}))\n'
     ),
     'ipv4': (
         'import json, socket\nblocked=False\n'
@@ -134,7 +154,8 @@ def main(args):
     observations['concurrent_cpu_attack'] = concurrent['attack']['result']
     observations['concurrent_benign_control'] = concurrent['benign_control']['result']
     parsed = {}
-    for name in ('control', 'processes', 'file_size', 'ipv4', 'ipv6', 'dns'):
+    for name in ('control', 'processes', 'file_size', 'aggregate_disk',
+                 'ipv4', 'ipv6', 'dns'):
         try:
             parsed[name] = json.loads(observations[name]['stdout'])
         except ValueError:
@@ -148,6 +169,13 @@ def main(args):
         'wall_limit': observations['wall']['status'] == 'timeout',
         'process_limit': bool(parsed['processes'] and parsed['processes']['blocked']),
         'file_limit': bool(parsed['file_size'] and parsed['file_size']['blocked']),
+        'aggregate_disk_limit': bool(parsed['aggregate_disk'] and
+                                     parsed['aggregate_disk']['blocked'] and
+                                     900 <= parsed['aggregate_disk']['created'] <= 1024 and
+                                     parsed['aggregate_disk']['error']['errno'] == errno.ENOSPC and
+                                     parsed['aggregate_disk']['root_read_only'] and
+                                     parsed['aggregate_disk']['shared_scratch'] and
+                                     parsed['aggregate_disk']['scratch_bytes'] == 32 * 1024 * 1024),
         'ipv4_denied': bool(parsed['ipv4'] and parsed['ipv4']['blocked']),
         'ipv6_denied': bool(parsed['ipv6'] and parsed['ipv6']['blocked']),
         'dns_denied': bool(parsed['dns'] and parsed['dns']['blocked']),

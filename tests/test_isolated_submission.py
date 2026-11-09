@@ -8,7 +8,7 @@ from pathlib import Path
 
 from exercises.python.reference import solve
 from sandbox.firecracker_backend import BackendUnavailable
-from sandbox.local_judge import JudgeUnavailable
+from sandbox.local_judge import JudgeInvalid, JudgeUnavailable
 from sandbox.platform import Platform
 from exercises.python.daily_revenue.reference import solve as solve_daily_revenue
 from sandbox.deterministic_runner import solve_python
@@ -310,6 +310,22 @@ class IsolatedSubmissionContract(unittest.TestCase):
             self.assertEqual(platform.lifecycle.get('tenant-a', session)['state'],
                              'completed')
             self.assertTrue(any(check['check'] == 'semantic judge availability'
+                                for check in result['trace']))
+        finally:
+            platform.close()
+
+    def test_invalid_model_answer_enters_review_not_infrastructure_retry(self):
+        platform = Platform(Path(self.tmp.name) / 'platform', backend=RecordingBackend())
+        try:
+            session = platform.create_session('tenant-a', 'orders-cents')
+
+            def malformed(_evidence):
+                raise JudgeInvalid('local judge returned invalid rubric')
+
+            result = platform.submit_code('tenant-a', session, 'source',
+                                          self.payload, malformed)
+            self.assertEqual(result['grade']['status'], 'REVIEW')
+            self.assertTrue(any(check['check'] == 'semantic judge response validity'
                                 for check in result['trace']))
         finally:
             platform.close()

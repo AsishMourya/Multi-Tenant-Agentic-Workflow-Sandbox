@@ -24,6 +24,20 @@ BROKER_SOCKET = '/tmp/dat-broker.sock'
 CHECKPOINT_SOCKET = '/tmp/dat-checkpoint.sock'
 
 
+def _prepare_writable_space(settings):
+    """Give learner-writable paths one bounded filesystem, then seal rootfs."""
+    size = settings['writable_disk_bytes']
+    if type(size) is not int or not 1024 * 1024 <= size <= 32 * 1024 * 1024:
+        raise ValueError('invalid writable disk limit')
+    subprocess.run(['mount', '-t', 'tmpfs', '-o',
+                    f'size={size},mode=1777,nosuid,nodev', 'tmpfs', '/tmp'],
+                   check=True)
+    for directory in ('/var/tmp', '/dev/shm', '/run/lock'):
+        os.makedirs(directory, mode=0o1777, exist_ok=True)
+        subprocess.run(['mount', '--bind', '/tmp', directory], check=True)
+    subprocess.run(['mount', '-o', 'remount,ro', '/'], check=True)
+
+
 def _limits(settings):
     os.setsid()
     os.setgroups([])
@@ -161,6 +175,7 @@ def execute(settings, payload):
 def main():
     settings = json.loads(Path(CONFIG).read_text(encoding='utf-8'))
     payload = json.loads(Path(INPUT).read_text(encoding='utf-8'))
+    _prepare_writable_space(settings)
     result = execute(settings, payload)
     encoded = base64.b64encode(json.dumps(result, separators=(',', ':')).encode()).decode()
     nonce = settings['nonce']

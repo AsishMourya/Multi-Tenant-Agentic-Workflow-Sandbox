@@ -21,7 +21,7 @@ from sandbox.exercise_registry import EXERCISES, PYTHON_EXERCISES, WORKFLOW_EXER
 from sandbox.firecracker_backend import BackendUnavailable
 from sandbox.grading import decision
 from sandbox.lifecycle import Lifecycle
-from sandbox.local_judge import JudgeUnavailable
+from sandbox.local_judge import JudgeInvalid, JudgeUnavailable
 from sandbox.state import StateStore
 
 
@@ -320,9 +320,16 @@ class Platform:
                           'weight': 1.0, 'passed': correct,
                           'execution_status': execution['status']})
         judge_error = None
+        judge_invalid = False
         try:
             judgments = self._resolve_judgments(judges, {'exercise': record['exercise'],
                 'payload': payload, 'output': output, 'deterministic_results': trace})
+        except JudgeInvalid as exc:
+            judgments = []
+            judge_error = str(exc)
+            judge_invalid = True
+            trace.append({'check': 'semantic judge response validity', 'passed': False,
+                          'error': judge_error})
         except JudgeUnavailable as exc:
             judgments = []
             judge_error = str(exc)
@@ -332,7 +339,7 @@ class Platform:
                             deterministic, invariant_ok, judgments, trace,
                             runtime_image_digest=execution.get('runtime_image_digest'),
                             policy_ok=execution['status'] not in {'timeout', 'output_limit'},
-                            infrastructure_ok=judge_error is None,
+                            infrastructure_ok=judge_error is None or judge_invalid,
                             source=source)
         self.grades.append(grade)
         if judge_error is not None:
@@ -415,10 +422,17 @@ class Platform:
         agent_grade = grade_workflow_agent(exercise, payload, output, effects, execution)
         trace = agent_grade['results']
         judge_error = None
+        judge_invalid = False
         try:
             judgments = self._resolve_judgments(judges, {'exercise': exercise,
                 'payload': payload, 'output': output, 'deterministic_results': trace,
                 'tool_effects': effects})
+        except JudgeInvalid as exc:
+            judgments = []
+            judge_error = str(exc)
+            judge_invalid = True
+            trace.append({'check': 'semantic judge response validity', 'passed': False,
+                          'error': judge_error})
         except JudgeUnavailable as exc:
             judgments = []
             judge_error = str(exc)
@@ -428,7 +442,7 @@ class Platform:
                             agent_grade['score'], agent_grade['invariants_ok'], judgments, trace,
                             runtime_image_digest=execution.get('runtime_image_digest'),
                             policy_ok=execution['status'] not in {'timeout', 'output_limit'},
-                            infrastructure_ok=judge_error is None,
+                            infrastructure_ok=judge_error is None or judge_invalid,
                             source=source)
         self.grades.append(grade)
         if judge_error is not None:

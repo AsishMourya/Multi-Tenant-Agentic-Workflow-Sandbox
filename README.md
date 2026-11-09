@@ -16,7 +16,7 @@ bash start-demo.sh
 
 Open [http://127.0.0.1:8080](http://127.0.0.1:8080), copy the `tenant-a` token from
 `config/tenants.local.json` into the dashboard, choose an exercise, and click
-**Run exercise**. The first launch installs the Python dependencies, builds the
+**Run**. The first launch installs the Python dependencies, builds the
 React frontend, and creates the local-only demo credentials. The frontend and API
 are served together; no separate Node server is required. See [RUNBOOK.md](RUNBOOK.md)
 for the short demo walkthrough and troubleshooting.
@@ -31,9 +31,10 @@ for the short demo walkthrough and troubleshooting.
 - **Agent - `order-explainer`:** explain order cost alongside stock availability.
 
 All six IDs have manifests, references, schemas, and deterministic contract checks.
-Live Firecracker end-to-end evidence currently covers the original `orders-cents`
-and `inventory` exercises; the other four have controller integration coverage but
-still need live guest demonstrations.
+All six dashboard starter examples completed live Firecracker runs with deterministic
+checks passing on 2026-11-09; all four workflows restored VM snapshots. A ten-request
+burst across two tenants also completed through the two-worker admission queue.
+These are bounded local probes, not grading-quality or broad security validation.
 
 The browser never chooses a tenant ID directly. It sends a bearer token; the
 control plane derives the tenant, owns the tool capability, and records the

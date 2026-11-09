@@ -22,7 +22,7 @@ if [[ ! -x .venv-linux/bin/python ]]; then
 fi
 .venv-linux/bin/python -m pip install -r requirements-lock.txt
 
-if [[ ! -x web/node_modules/.bin/vite ]]; then
+if [[ ! -x web/node_modules/.bin/vite || ! -x web/node_modules/esbuild-linux-64/bin/esbuild ]]; then
   npm ci --prefix web
 fi
 npm --prefix web run build

@@ -1,0 +1,12 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run DAT demo",
+			"type": "shell",
+			"command": "wsl -u root -- bash start-demo.sh",
+			"isBackground": true,
+			"problemMatcher": []
+		}
+	]
+}

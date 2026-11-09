@@ -22,6 +22,7 @@ DEFAULT_POLICY = {
     'address_bytes': 256 * 1024 * 1024, 'processes': 16,
     'output_bytes': 65536, 'wall_seconds': 15,
     'snapshot_wall_seconds': 120,
+    'writable_disk_bytes': 32 * 1024 * 1024,
 }
 
 
@@ -41,7 +42,8 @@ class FirecrackerBackend:
                   'cpu_seconds': (1, 30), 'address_bytes': (64 * 1024 * 1024,
                                                         512 * 1024 * 1024),
                   'processes': (1, 16), 'output_bytes': (1024, 65536),
-                  'wall_seconds': (1, 30), 'snapshot_wall_seconds': (30, 180)}
+                  'wall_seconds': (1, 30), 'snapshot_wall_seconds': (30, 180),
+                  'writable_disk_bytes': (1024 * 1024, 32 * 1024 * 1024)}
         if set(self.policy) != set(limits) or any(
             type(self.policy[key]) is not int or not low <= self.policy[key] <= high
             for key, (low, high) in limits.items()

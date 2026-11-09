@@ -46,6 +46,18 @@ def main(args):
     backend = FirecrackerBackend(args.root)
     observed = {name: backend.run_python('security-tenant', 'security-' + name, source, {})
                 for name, source in CASES.items()}
+    marker = '/tmp/dat-tenant-isolation-marker'
+    observed['tenant_a_write'] = backend.run_python(
+        'security-tenant-a', 'security-isolation-write',
+        'import json, pathlib\n'
+        f'p=pathlib.Path({marker!r})\n'
+        'p.write_text("tenant-a-only")\n'
+        'print(json.dumps({"own_marker": p.read_text()}))\n', {})
+    observed['tenant_b_read'] = backend.run_python(
+        'security-tenant-b', 'security-isolation-read',
+        'import json, pathlib\n'
+        f'p=pathlib.Path({marker!r})\n'
+        'print(json.dumps({"foreign_marker_present": p.exists()}))\n', {})
     parsed = {name: json.loads(result['stdout']) if result['status'] == 'ok' else None
               for name, result in observed.items()}
     checks = {
@@ -54,6 +66,11 @@ def main(args):
         'host_mount_absent': parsed['host_mount_absent'] == {'host_mount_present': False},
         'direct_broker_bypass': parsed['direct_broker_bypass'] == {'blocked': True},
         'environment_canary_absent': parsed['environment_canary_absent'] == {'canary_present': False},
+        'tenant_filesystem_isolation': (
+            observed['tenant_a_write']['status'] == 'ok' and
+            observed['tenant_b_read']['status'] == 'ok' and
+            parsed['tenant_a_write'] == {'own_marker': 'tenant-a-only'} and
+            parsed['tenant_b_read'] == {'foreign_marker_present': False}),
     }
     result = {'at_utc': datetime.now(timezone.utc).isoformat(),
               'scope': 'defined live guest filesystem/environment/broker corpus only',

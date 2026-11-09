@@ -68,5 +68,6 @@ class Schemas(unittest.TestCase):
             'output_bytes': execution['output_bytes'],
             'wall_seconds': execution['wall_seconds'],
             'snapshot_wall_seconds': execution['snapshot_wall_seconds'],
+            'writable_disk_bytes': execution['writable_disk_mib'] * 1024 * 1024,
         },DEFAULT_POLICY)
         self.assertEqual(policy['grading']['deterministic_weight']+policy['grading']['semantic_weight'],1)
