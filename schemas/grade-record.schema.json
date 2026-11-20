@@ -4,6 +4,7 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "reason": {"type": "string"},
     "schema_version": {
       "const": "1.0.0"
     },

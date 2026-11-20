@@ -88,7 +88,7 @@ class Lifecycle:
             raise ValueError('invalid worker capacity')
         self.db.execute('BEGIN IMMEDIATE')
         try:
-            active = self.db.execute("SELECT count(*) FROM sessions WHERE state IN ('running','checkpointing','restoring')").fetchone()[0]
+            active = self.db.execute("SELECT count(*) FROM sessions WHERE state IN ('running','checkpointing','restoring') OR (state='paused' AND id IN (SELECT session FROM admission))").fetchone()[0]
             if active >= capacity:
                 self.db.execute('COMMIT')
                 return None
@@ -97,7 +97,7 @@ class Lifecycle:
                 JOIN sessions s ON s.id=a.session WHERE s.state='queued' AND a.expires_at>?
                 ORDER BY a.queued_at,a.session''', (now,)).fetchall()
             candidates = [candidate for candidate in candidates if self.db.execute(
-                "SELECT count(*) FROM sessions WHERE tenant=? AND state IN ('running','checkpointing','restoring')",
+                "SELECT count(*) FROM sessions WHERE tenant=? AND (state IN ('running','checkpointing','restoring') OR (state='paused' AND id IN (SELECT session FROM admission)))",
                 (candidate[1],)).fetchone()[0] < tenant_capacity]
             if not candidates:
                 self.db.execute('COMMIT')
@@ -129,7 +129,32 @@ class Lifecycle:
         self.db.execute('DELETE FROM admission WHERE session=?', (session,))
 
     @synchronized
-    def expire_due(self):
+    def reserve_resume(self, tenant, session, *, capacity, tenant_capacity, ttl_seconds):
+        """Atomically reserve worker capacity for application-state restoration."""
+        self.db.execute('BEGIN IMMEDIATE')
+        try:
+            row = self.db.execute('SELECT tenant,state,version FROM sessions WHERE id=?', (session,)).fetchone()
+            if row is None or row[0] != tenant:
+                raise PermissionError('session unavailable')
+            if row[1] != 'paused':
+                raise ValueError('session is not paused')
+            active = self.db.execute("SELECT tenant FROM sessions WHERE state IN ('running','checkpointing','restoring') OR (state='paused' AND id IN (SELECT session FROM admission))").fetchall()
+            if len(active) >= capacity or sum(owner[0] == tenant for owner in active) >= tenant_capacity:
+                raise RuntimeError('no worker available for resume; retry later')
+            now = float(self.clock())
+            self.db.execute('INSERT OR REPLACE INTO admission VALUES(?,?,?,?,0)',
+                            (session, tenant, now, now + ttl_seconds))
+            self.db.execute("UPDATE sessions SET state='restoring',version=version+1 WHERE id=?", (session,))
+            self.db.execute('INSERT INTO events VALUES(?,?,?,?,?)',
+                            (datetime.now(timezone.utc).isoformat(), session, 'paused', 'restoring', row[2] + 1))
+            self.db.execute('COMMIT')
+        except Exception:
+            if self.db.in_transaction:
+                self.db.execute('ROLLBACK')
+            raise
+
+    @synchronized
+    def expire_due(self, exclude=()):
         """Expire queued or active work after controller restart; returns affected IDs."""
         now = float(self.clock())
         rows = self.db.execute('''SELECT a.session,a.tenant,s.state,s.version FROM admission a
@@ -137,6 +162,8 @@ class Lifecycle:
             AND s.state IN ('queued','running','checkpointing','paused','restoring')''', (now,)).fetchall()
         expired = []
         for session, tenant, _state, version in rows:
+            if session in exclude:
+                continue
             self.transition(tenant, session, 'expired', f'expire:{version}', version)
             self.finish_execution(session)
             expired.append(session)

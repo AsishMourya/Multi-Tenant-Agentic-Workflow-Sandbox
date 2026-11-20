@@ -19,13 +19,14 @@ class TenantGateway:
         self.platform = platform
         self.digests = {tenant: hashlib.sha256(token.encode()).digest()
                         for tenant, token in credentials.items()}
-        self.session_digests = {}
+        self.browser_auth = None
 
     def bind_browser_session(self, tenant, token):
         """Bind a verified opaque browser session to its server-owned tenant."""
         if not isinstance(tenant, str) or not isinstance(token, str):
             raise PermissionError('invalid session')
-        self.session_digests[hashlib.sha256(token.encode()).digest()] = tenant
+        if self.browser_auth is None or self.browser_auth.tenant_for(token) != tenant:
+            raise PermissionError('invalid session')
 
     def _tenant(self, bearer):
         if not isinstance(bearer, str):
@@ -34,9 +35,9 @@ class TenantGateway:
         for tenant, expected in self.digests.items():
             if hmac.compare_digest(digest, expected):
                 return tenant
-        tenant = self.session_digests.get(digest)
-        if tenant is not None:
-            return tenant
+        if self.browser_auth is not None:
+            # Always consult the durable session store, including after restart.
+            return self.browser_auth.tenant_for(bearer)
         raise PermissionError('invalid credential')
 
     def create(self, bearer, exercise):
@@ -55,6 +56,12 @@ class TenantGateway:
     def status(self, bearer, session):
         return self.platform.status(self._tenant(bearer), session)
 
+    def list_sessions(self, bearer):
+        return self.platform.list_sessions(self._tenant(bearer))
+
+    def cancel(self, bearer, session):
+        return self.platform.cancel(self._tenant(bearer), session)
+
     def delete(self, bearer, session):
         return self.platform.delete(self._tenant(bearer), session)
 
@@ -63,3 +70,6 @@ class TenantGateway:
 
     def resume(self, bearer, session):
         return self.platform.resume(self._tenant(bearer), session)
+
+    def finish_safe_point(self, bearer, session):
+        return self.platform.finish_safe_point(self._tenant(bearer), session)

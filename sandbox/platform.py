@@ -1,13 +1,10 @@
-"""Small local controller composing the trusted prototype foundations.
-
-This is an application-state prototype, not a general-purpose sandbox runner.
-The production backend remains a pinned Firecracker/E2B evaluation on Linux/KVM.
-"""
+"""Tenant-owned execution, admission, restoration and grading control plane."""
 import hashlib
 import json
 import secrets
 import sqlite3
 import threading
+import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from functools import wraps
@@ -17,15 +14,23 @@ from exercises.workflow.reference import build
 from sandbox.broker import Broker
 from sandbox.agent_grading import grade_workflow_agent
 from sandbox.deterministic_runner import grade_python_submission, solve_python
-from sandbox.exercise_registry import EXERCISES, PYTHON_EXERCISES, WORKFLOW_EXERCISES
+from sandbox.exercise_registry import EXERCISES, PYTHON_EXERCISES, WORKFLOW_EXERCISES, validate_input
 from sandbox.firecracker_backend import BackendUnavailable
 from sandbox.grading import decision
 from sandbox.lifecycle import Lifecycle
 from sandbox.local_judge import JudgeInvalid, JudgeUnavailable
 from sandbox.state import StateStore
+from sandbox.reviews import record_review
 
 
 RUNTIME_IMAGE = 'w1-trusted-fixture-only'
+
+
+class Judgments(list):
+    """JSON-compatible judgments plus server-recorded provenance for each call."""
+    def __init__(self):
+        super().__init__()
+        self.metadata = []
 
 
 def _now():
@@ -37,6 +42,50 @@ def serialize_session(method):
     def wrapped(self, tenant, session, *args, **kwargs):
         with self._session_lock(session):
             return method(self, tenant, session, *args, **kwargs)
+    return wrapped
+
+
+def isolated_execution(method):
+    """Cover the entire execution and grading transaction, including hidden runs."""
+    @wraps(method)
+    def wrapped(self, tenant, session, source, payload, judges, **kwargs):
+        with self._session_lock(session):
+            record = self._owned(tenant, session)
+            allowed = PYTHON_EXERCISES if method.__name__ == 'submit_code' else WORKFLOW_EXERCISES
+            if record['exercise'] not in allowed:
+                raise ValueError('exercise does not support this execution endpoint')
+            if self.backend is None:
+                raise RuntimeError('isolated backend is required for learner code')
+            if not isinstance(source, str) or not 1 <= len(source.encode('utf-8')) <= 32768:
+                raise ValueError('source must be 1-32768 UTF-8 bytes')
+            if len(json.dumps(payload, allow_nan=False).encode()) > 65536:
+                raise ValueError('input exceeds 65536 bytes')
+            validate_input(record['exercise'], payload)
+            # Queue contention and validation errors are not failed executions.
+            with self._admission_guard:
+                self._ensure_admitted(tenant, session)
+                self._executing.add(session)
+            try:
+                started = time.monotonic()
+                result = method(self, tenant, session, source, payload, judges, **kwargs)
+                result['execution']['request_wall_seconds'] = round(time.monotonic() - started, 3)
+                self._save_result(session, result['output'], result['grade'], result['trace'], result['execution'])
+                return result
+            except BackendUnavailable:
+                self.broker.revoke(session, state='failed')
+                return self._backend_unavailable(tenant, session, record['exercise'],
+                                                 payload, source, judges)
+            except Exception:
+                self.broker.revoke(session, state='failed')
+                current = self.lifecycle.get(tenant, session)
+                if current['state'] in {'running', 'checkpointing', 'paused', 'restoring'}:
+                    self.lifecycle.transition(tenant, session, 'failed',
+                                              'execution-failed', current['version'])
+                self._complete_execution(session)
+                raise
+            finally:
+                with self._admission_guard:
+                    self._executing.discard(session)
     return wrapped
 
 
@@ -61,6 +110,8 @@ class Platform:
             result_json TEXT)''')
         self._session_locks_guard = threading.Lock()
         self._session_locks = {}
+        self._admission_guard = threading.RLock()
+        self._executing = set()
         self.sessions = {}
         self.grades = []
         self.backend = backend
@@ -137,10 +188,13 @@ class Platform:
             raise RuntimeError(f"session is {current['state']} and cannot execute")
 
     def reap_expired(self):
-        """Controller-start/recovery janitor for expired admissions."""
-        expired = self.lifecycle.expire_due()
-        self._admit_available()
-        return expired
+        """Expire abandoned admissions without racing an executing request."""
+        with self._admission_guard:
+            expired = self.lifecycle.expire_due(exclude=self._executing)
+            for session in expired:
+                self.broker.revoke(session, state='expired')
+            self._admit_available()
+            return expired
 
     def _complete_execution(self, session):
         self.lifecycle.finish_execution(session)
@@ -150,12 +204,19 @@ class Platform:
     def _resolve_judgments(judges, observed):
         """Obtain server-owned semantic judgments after deterministic evidence exists."""
         if not callable(judges):
-            return judges
-        resolved = []
+            return list(judges)
+        resolved = Judgments()
         for _ in range(2):
-            response = judges(observed)
+            try:
+                response = judges(observed)
+            except JudgeUnavailable as exc:
+                resolved.metadata.append({**exc.metadata, 'error': str(exc)})
+                exc.partial_judgments = resolved
+                raise
             resolved.append(response['judgment'] if isinstance(response, dict)
                             and 'judgment' in response else response)
+            if isinstance(response, dict) and 'metadata' in response:
+                resolved.metadata.append(response['metadata'])
         return resolved
 
     def _owned(self, tenant, session):
@@ -200,9 +261,12 @@ class Platform:
         self._complete_execution(session)
         return {'output': output, 'grade': grade, 'trace': trace}
 
-    def _save_result(self, session, output, grade, trace):
+    def _save_result(self, session, output, grade, trace, execution=None):
+        result = {'output': output, 'grade': grade, 'trace': trace}
+        if execution is not None:
+            result['execution'] = execution
         self.db.execute('UPDATE submissions SET result_json=? WHERE session=?',
-                        (json.dumps({'output': output, 'grade': grade, 'trace': trace}), session))
+                        (json.dumps(result), session))
 
     def _backend_unavailable(self, tenant, session, exercise, payload, source, judges):
         trace = [{'check': 'isolated backend availability', 'passed': False}]
@@ -210,7 +274,8 @@ class Platform:
                             False, judges, trace, runtime_image_digest='unavailable',
                             infrastructure_ok=False, source=source)
         self.grades.append(grade)
-        self._save_result(session, None, grade, trace)
+        execution = {'status': 'infrastructure_error', 'reason': 'isolated backend unavailable'}
+        self._save_result(session, None, grade, trace, execution)
         current = self.lifecycle.get(tenant, session)
         if current['state'] in {'running', 'checkpointing', 'paused', 'restoring'}:
             self.lifecycle.transition(tenant, session, 'failed',
@@ -229,6 +294,29 @@ class Platform:
         return {'session': session, **state,
                 'result': json.loads(row[0]) if row and row[0] else None}
 
+    def list_sessions(self, tenant):
+        rows = self.db.execute('SELECT session,exercise,result_json FROM submissions '
+                               'WHERE tenant=? ORDER BY rowid DESC LIMIT 100', (tenant,)).fetchall()
+        return [{'session': session, 'exercise': exercise,
+                 **self.lifecycle.get(tenant, session),
+                 'grade_status': (json.loads(encoded).get('grade', {}).get('status')
+                                  if encoded else None)}
+                for session, exercise, encoded in rows]
+
+    @serialize_session
+    def cancel(self, tenant, session):
+        self._owned(tenant, session)
+        with self._admission_guard:
+            current = self.lifecycle.get(tenant, session)
+            if current['state'] not in {'queued', 'paused', 'running'}:
+                raise ValueError('only waiting or paused sessions can be cancelled')
+            if session in self._executing:
+                raise RuntimeError('execution is active; wait for its bounded completion')
+            self.lifecycle.transition(tenant, session, 'failed', 'cancel', current['version'])
+            self.broker.revoke(session, state='failed')
+            self._complete_execution(session)
+        return {'session': session, 'state': 'failed', 'cancelled': True}
+
     @serialize_session
     def delete(self, tenant, session):
         self._owned(tenant, session)
@@ -243,7 +331,7 @@ class Platform:
         self.sessions.pop(session, None)
         self.lifecycle.cleanup_done(session)
 
-    @serialize_session
+    @isolated_execution
     def submit_code(self, tenant, session, source, payload, judges,
                     pause_resume=False):
         """Run a learner's standalone Python submission in the configured VM.
@@ -302,7 +390,7 @@ class Platform:
         except (TypeError, ValueError, KeyError):
             expected = None
         correct = output is not None and expected is not None and output == expected
-        if pause_resume:
+        if pause_resume or not correct:
             # The supported full-VM pause exercise is demonstrated once; repeated
             # hidden vectors are a separate non-checkpoint grading invocation.
             deterministic = float(correct)
@@ -322,16 +410,16 @@ class Platform:
         judge_error = None
         judge_invalid = False
         try:
-            judgments = self._resolve_judgments(judges, {'exercise': record['exercise'],
+            judgments = self._resolve_judgments(judges if invariant_ok else (), {'exercise': record['exercise'],
                 'payload': payload, 'output': output, 'deterministic_results': trace})
         except JudgeInvalid as exc:
-            judgments = []
+            judgments = getattr(exc, 'partial_judgments', [])
             judge_error = str(exc)
             judge_invalid = True
             trace.append({'check': 'semantic judge response validity', 'passed': False,
                           'error': judge_error})
         except JudgeUnavailable as exc:
-            judgments = []
+            judgments = getattr(exc, 'partial_judgments', [])
             judge_error = str(exc)
             trace.append({'check': 'semantic judge availability', 'passed': False,
                           'error': judge_error})
@@ -345,14 +433,14 @@ class Platform:
         if judge_error is not None:
             grade['metrics']['judge_error'] = judge_error
         grade['metrics']['full_vm_snapshot'] = bool(execution.get('snapshot'))
-        self._save_result(session, output, grade, trace)
+        self._save_result(session, output, grade, trace, execution)
         current = self.lifecycle.get(tenant, session)
         self.lifecycle.transition(tenant, session, 'completed',
                                   'vm-completed', current['version'])
         self._complete_execution(session)
         return {'output': output, 'execution': execution, 'grade': grade, 'trace': trace}
 
-    @serialize_session
+    @isolated_execution
     def submit_workflow_code(self, tenant, session, source, payload, judges):
         """Run learner LangGraph source with one host-scoped mock tool call."""
         record = self._owned(tenant, session)
@@ -410,9 +498,6 @@ class Platform:
                 self._complete_execution(session)
             raise
         self.broker.revoke(session, state='completed')
-        current = self.lifecycle.get(tenant, session)
-        self.lifecycle.transition(tenant, session, 'completed',
-                                  'vm-completed', current['version'])
         output = None
         if execution['status'] == 'ok':
             try:
@@ -424,17 +509,17 @@ class Platform:
         judge_error = None
         judge_invalid = False
         try:
-            judgments = self._resolve_judgments(judges, {'exercise': exercise,
+            judgments = self._resolve_judgments(judges if agent_grade['invariants_ok'] else (), {'exercise': exercise,
                 'payload': payload, 'output': output, 'deterministic_results': trace,
                 'tool_effects': effects})
         except JudgeInvalid as exc:
-            judgments = []
+            judgments = getattr(exc, 'partial_judgments', [])
             judge_error = str(exc)
             judge_invalid = True
             trace.append({'check': 'semantic judge response validity', 'passed': False,
                           'error': judge_error})
         except JudgeUnavailable as exc:
-            judgments = []
+            judgments = getattr(exc, 'partial_judgments', [])
             judge_error = str(exc)
             trace.append({'check': 'semantic judge availability', 'passed': False,
                           'error': judge_error})
@@ -448,7 +533,10 @@ class Platform:
         if judge_error is not None:
             grade['metrics']['judge_error'] = judge_error
         grade['metrics']['full_vm_snapshot'] = bool(execution.get('snapshot'))
-        self._save_result(session, output, grade, trace)
+        self._save_result(session, output, grade, trace, execution)
+        current = self.lifecycle.get(tenant, session)
+        self.lifecycle.transition(tenant, session, 'completed',
+                                  'vm-completed', current['version'])
         self._complete_execution(session)
         return {'output': output, 'execution': execution, 'grade': grade, 'trace': trace}
 
@@ -458,10 +546,12 @@ class Platform:
         trace.update(resume_trace)
         return output, [trace]
 
+    @serialize_session
     def pause(self, tenant, session, payload):
         record = self._owned(tenant, session)
         if record['exercise'] != 'inventory':
             raise ValueError('only inventory supports this checkpoint')
+        validate_input('inventory', payload)
         self._ensure_admitted(tenant, session)
         token = self.broker.issue(tenant, session, 'inventory')
         effects = []
@@ -484,9 +574,11 @@ class Platform:
         current = self.lifecycle.get(tenant, session)
         self.lifecycle.transition(tenant, session, 'paused', 'save', current['version'], durable=True)
         self.lifecycle.cleanup_done(session)
+        self._complete_execution(session)
         return {'operation': 'inventory.lookup', 'request': 'lookup-1', 'effects': effects,
                 'checkpoint': checkpoint['schema'], 'compute_released': True, 'paused': True}
 
+    @serialize_session
     def resume(self, tenant, session):
         record = self._owned(tenant, session)
         if record['exercise'] != 'inventory':
@@ -496,7 +588,9 @@ class Platform:
             raise ValueError('session is not paused')
         # Validate the checkpoint before changing lifecycle or broker state.
         restored = self.state.load(tenant, session, 'inventory')
-        self.lifecycle.transition(tenant, session, 'restoring', 'resume', current['version'])
+        self.lifecycle.reserve_resume(tenant, session, capacity=self.worker_capacity,
+                                      tenant_capacity=self.tenant_worker_capacity,
+                                      ttl_seconds=self.session_ttl_seconds)
         self.broker.resume(tenant, session, 'inventory')
         fresh_token = self.broker.issue(tenant, session, 'inventory')
         current = self.lifecycle.get(tenant, session)
@@ -506,6 +600,15 @@ class Platform:
                  'explanation': f"Requested {restored['quantity']}; available {restored['available']}; accepted {accepted}."},
                 {'resumed': True, 'fresh_capability': bool(fresh_token)})
 
+    @serialize_session
+    def finish_safe_point(self, tenant, session):
+        """Complete the trusted application-state example and release its slot."""
+        self._owned(tenant, session)
+        current = self.lifecycle.get(tenant, session)
+        self.lifecycle.transition(tenant, session, 'completed', 'safe-point-complete', current['version'])
+        self.broker.revoke(session, state='completed')
+        self._complete_execution(session)
+
     def _grade(self, tenant, session, exercise, payload, output, deterministic,
                invariant_ok, judges, trace, runtime_image_digest=None,
                policy_ok=True, infrastructure_ok=True, source=None):
@@ -513,43 +616,31 @@ class Platform:
                           infrastructure_ok=infrastructure_ok, policy_ok=policy_ok)
         raw = json.dumps({'payload': payload, 'output': output, 'source': source},
                          sort_keys=True).encode()
+        runs = getattr(judges, 'metadata', [])
+        model_ids = sorted({run['model'] for run in runs if run.get('model')})
+        model_digests = sorted({run['model_digest'] for run in runs if run.get('model_digest')})
+        prompt_versions = sorted({run['prompt_version'] for run in runs if run.get('prompt_version')})
         return {
             'schema_version': '1.0.0', 'grade_id': secrets.token_hex(12),
             'tenant': tenant, 'session': session, 'at_utc': _now(),
             'submission_sha256': hashlib.sha256(raw).hexdigest(),
             'exercise_version': f'{exercise}:1.0.0', 'test_suite_version': '1.0.0',
-            'rubric_version': '1.0.0', 'model_id': 'local-judge-unconfigured',
-            'model_digest': 'unconfigured', 'prompt_version': 'w1-rubric-1',
+            'rubric_version': '1.0.0', 'model_id': ','.join(model_ids) or 'local-judge-unconfigured',
+            'model_digest': ','.join(model_digests) or ('unreported' if model_ids else 'unconfigured'),
+            'prompt_version': ','.join(prompt_versions) or 'unconfigured',
             'runtime_image_digest': runtime_image_digest or RUNTIME_IMAGE,
             'deterministic_results': trace,
             'mandatory_invariants_ok': invariant_ok, 'judgments': judges,
             'score': result['score'], 'status': result['status'], 'review_history': [],
-            'metrics': {'application_state_checkpoint': exercise in WORKFLOW_EXERCISES
+            'reason': result.get('reason', '; '.join(result.get('review_reasons', []))),
+            'metrics': {'judge_runs': runs, 'judge_calls': len(runs) if runs else len(judges),
+                        'application_state_checkpoint': exercise in WORKFLOW_EXERCISES
                         and runtime_image_digest is None}
         }
 
     def add_review(self, grade_id, reviewer, decision_text, reason):
-        if (not all(isinstance(value, str) and value.strip()
-                    for value in (grade_id, reviewer, decision_text, reason)) or
-                decision_text not in {'PASS', 'FAIL', 'ESCALATE'}):
-            raise ValueError('invalid review record')
-        row = self.db.execute('SELECT session,result_json FROM submissions WHERE result_json IS NOT NULL').fetchall()
-        for session, encoded in row:
-            result = json.loads(encoded)
-            grade = result.get('grade')
-            if not isinstance(grade, dict) or grade.get('grade_id') != grade_id:
-                continue
-            if grade['status'] != 'REVIEW':
-                raise ValueError('grade is not pending review')
-            review = {'reviewer': reviewer, 'at_utc': _now(),
-                      'decision': decision_text, 'reason': reason}
-            grade.setdefault('review_history', []).append(review)
-            # The machine recommendation remains REVIEW; a human decision is a
-            # separate auditable record rather than an overwritten model result.
-            self.db.execute('UPDATE submissions SET result_json=? WHERE session=?',
-                            (json.dumps(result), session))
-            for in_memory in self.grades:
-                if in_memory['grade_id'] == grade_id:
-                    in_memory['review_history'] = list(grade['review_history'])
-            return grade
-        raise KeyError('unknown grade')
+        grade = record_review(self.root / 'platform.sqlite3', grade_id, reviewer, decision_text, reason)
+        for in_memory in self.grades:
+            if in_memory['grade_id'] == grade_id:
+                in_memory['review_history'] = list(grade['review_history'])
+        return grade

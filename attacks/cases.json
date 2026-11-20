@@ -5,41 +5,121 @@
       "id": "ISO-01",
       "category": "isolation",
       "version": "1.0.0",
-      "runner": "scripts/attack_cases.py",
-      "expected": "foreign tenant denied; session unchanged",
-      "limits": "control API, not VM filesystem"
+      "runner": "scripts/validate_security.py",
+      "expected": "foreign owner denied, own session unchanged",
+      "limits": "control-plane ownership"
+    },
+    {
+      "id": "ISO-02",
+      "category": "isolation",
+      "version": "1.0.0",
+      "runner": "scripts/validate_security.py",
+      "expected": "foreign checkpoint denied",
+      "limits": "checkpoint ownership"
+    },
+    {
+      "id": "ISO-03",
+      "category": "isolation",
+      "version": "1.0.0",
+      "runner": "scripts/validate_security.py",
+      "expected": "tenant B cannot read tenant A marker",
+      "limits": "live separate guest filesystems"
     },
     {
       "id": "RES-01",
       "category": "resource_exhaustion",
       "version": "1.0.0",
-      "runner": "scripts/attack_cases.py",
-      "expected": "one CPU-loop child killed after 0.2-second timeout",
-      "limits": "one synthetic child, no fork bomb"
+      "runner": "scripts/validate_security.py",
+      "expected": "cpu_limit enforced with benign control",
+      "limits": "live guest; concurrent control shared by resource probe suite"
+    },
+    {
+      "id": "RES-02",
+      "category": "resource_exhaustion",
+      "version": "1.0.0",
+      "runner": "scripts/validate_security.py",
+      "expected": "memory_limit enforced with benign control",
+      "limits": "live guest; concurrent control shared by resource probe suite"
+    },
+    {
+      "id": "RES-03",
+      "category": "resource_exhaustion",
+      "version": "1.0.0",
+      "runner": "scripts/validate_security.py",
+      "expected": "aggregate_disk_limit enforced with benign control",
+      "limits": "live guest; concurrent control shared by resource probe suite"
     },
     {
       "id": "NET-01",
       "category": "network_denial",
       "version": "1.0.0",
-      "runner": "scripts/attack_cases.py",
-      "expected": "general fetch denied; named lookup succeeds",
-      "limits": "no socket or external traffic attempted"
+      "runner": "scripts/validate_security.py",
+      "expected": "guest cannot reach owned host listener; observer control succeeds",
+      "limits": "live host-local boundary and destination-side observation"
+    },
+    {
+      "id": "NET-02",
+      "category": "network_denial",
+      "version": "1.0.0",
+      "runner": "scripts/validate_security.py",
+      "expected": "guest cannot reach owned host listener; observer control succeeds",
+      "limits": "live host-local boundary and destination-side observation"
+    },
+    {
+      "id": "NET-03",
+      "category": "network_denial",
+      "version": "1.0.0",
+      "runner": "scripts/validate_security.py",
+      "expected": "guest cannot reach owned host listener; observer control succeeds",
+      "limits": "live host-local boundary and destination-side observation"
     },
     {
       "id": "SEC-01",
       "category": "secret_protection",
       "version": "1.0.0",
-      "runner": "scripts/attack_cases.py",
-      "expected": "dummy absent; revoked replay denied",
-      "limits": "dummy fixture only"
+      "runner": "scripts/validate_security.py",
+      "expected": "forged capability denied",
+      "limits": "broker signature"
+    },
+    {
+      "id": "SEC-02",
+      "category": "secret_protection",
+      "version": "1.0.0",
+      "runner": "scripts/validate_security.py",
+      "expected": "revoked capability denied and canary absent",
+      "limits": "broker revocation and synthetic secret boundary"
+    },
+    {
+      "id": "SEC-03",
+      "category": "secret_protection",
+      "version": "1.0.0",
+      "runner": "scripts/validate_security.py",
+      "expected": "guest cannot read protected runtime files or secret environment",
+      "limits": "live guest"
     },
     {
       "id": "GRD-01",
       "category": "grader_injection",
       "version": "1.0.0",
-      "runner": "scripts/attack_cases.py",
-      "expected": "hard failure remains failure despite score-changing text",
-      "limits": "no real model claim"
+      "runner": "scripts/validate_security.py",
+      "expected": "mandatory failure cannot become PASS",
+      "limits": "deterministic grading gate"
+    },
+    {
+      "id": "GRD-02",
+      "category": "grader_injection",
+      "version": "1.0.0",
+      "runner": "scripts/validate_security.py",
+      "expected": "unstructured score-changing answer requires review",
+      "limits": "rubric validation"
+    },
+    {
+      "id": "GRD-03",
+      "category": "grader_injection",
+      "version": "1.0.0",
+      "runner": "scripts/validate_security.py",
+      "expected": "test-conflicting model answers require review",
+      "limits": "conflict escalation; not LLM robustness proof"
     }
   ]
 }

@@ -230,7 +230,7 @@ async function api(path, token, options = {}) {
   const response = await fetch(path, {
     ...options,
     headers: {
-      Authorization: `Bearer ${token}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       'Content-Type': 'application/json',
       ...options.headers,
     },
@@ -256,6 +256,74 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [runStartedAt, setRunStartedAt] = useState(null);
   const [runSeconds, setRunSeconds] = useState(0);
+  const [account, setAccount] = useState(null);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    api('/v1/auth/me', '').then(setAccount).catch(() => {});
+  }, []);
+
+  const authenticate = async (action) => {
+    setBusy(true);
+    setMessage('');
+    try {
+      const user = await api(`/v1/auth/${action}`, '', {
+        method: 'POST', body: JSON.stringify({ username, password }),
+      });
+      setAccount(user);
+      setToken('');
+      setPassword('');
+      setSession(null);
+      setResult(null);
+      setHistory([]);
+    } catch (error) { setMessage(error.message); }
+    finally { setBusy(false); }
+  };
+
+  const signOut = async () => {
+    setBusy(true);
+    try {
+      await api('/v1/auth/logout', '', { method: 'POST', body: '{}' });
+      setAccount(null); setToken(''); setSession(null); setResult(null); setHistory([]);
+      setMessage('Signed out.');
+    } catch (error) { setMessage(error.message); }
+    finally { setBusy(false); }
+  };
+
+  const refreshHistory = async () => {
+    try {
+      const data = await api('/v1/sessions', token.trim());
+      setHistory(data.sessions);
+      setMessage(data.sessions.length ? '' : 'No saved sessions yet.');
+    } catch (error) { setMessage(error.message); }
+  };
+
+  const openSession = async (entry) => {
+    setBusy(true);
+    try {
+      const data = await api(`/v1/sessions/${encodeURIComponent(entry.session)}`, token.trim());
+      setExercise(entry.exercise);
+      setSource(templates[entry.exercise].source);
+      setPayload(templates[entry.exercise].payload);
+      setSession({ id: entry.session, state: data.state });
+      setResult(data.result);
+      setMessage('Saved session selected. Editors show the starter for a new run.');
+    } catch (error) { setMessage(error.message); }
+    finally { setBusy(false); }
+  };
+
+  const removeSession = async () => {
+    if (!session) return;
+    setBusy(true);
+    try {
+      await api(`/v1/sessions/${encodeURIComponent(session.id)}`, token.trim(), { method: 'DELETE' });
+      setSession(null); setResult(null); setMessage('Session deleted.');
+      await refreshHistory();
+    } catch (error) { setMessage(error.message); }
+    finally { setBusy(false); }
+  };
 
   useEffect(() => {
     if (!busy || runStartedAt === null) return undefined;
@@ -274,7 +342,7 @@ function App() {
   };
 
   const startCheckpointDemo = async () => {
-    if (!token.trim()) {
+    if (!token.trim() && !account) {
       setMessage('Add a tenant token to connect this workspace.');
       return;
     }
@@ -293,7 +361,7 @@ function App() {
   };
 
   const run = async () => {
-    if (!token.trim()) {
+    if (!token.trim() && !account) {
       setMessage('Add a tenant token to connect this workspace.');
       return;
     }
@@ -326,7 +394,10 @@ function App() {
           }
           if (status.state !== 'queued') throw new Error(`Session is ${status.state} and cannot run.`);
         }
-        if (!output) throw new Error('Still queued. Keep this page open and click Run again later.');
+        if (!output) {
+          await api(`/v1/sessions/${encodeURIComponent(created.session)}/cancel`, token.trim(), { method: 'POST', body: '{}' });
+          throw new Error('Queue wait exceeded one minute. Waiting session cancelled; try again shortly.');
+        }
       }
       const status = await api(`/v1/sessions/${encodeURIComponent(created.session)}`, token.trim());
       setSession({ id: created.session, state: status.state });
@@ -348,7 +419,7 @@ function App() {
       const body = action === 'pause' ? JSON.stringify({ payload: JSON.parse(payload) }) : '{}';
       const data = await api(endpoint, token.trim(), { method: 'POST', body });
       setResult(data);
-      setSession({ ...session, state: action === 'pause' ? 'paused' : 'running', safePointDemo: action === 'pause' });
+      setSession({ ...session, state: action === 'pause' ? 'paused' : data.state, safePointDemo: action === 'pause' });
       setMessage(action === 'pause' ? 'Safe point saved and compute released.' : 'Checkpoint restored with fresh tool access.');
     } catch (error) {
       setMessage(error.message);
@@ -358,8 +429,20 @@ function App() {
   };
 
   const gradeStatus = result?.grade?.status;
-  const deterministicPassed = result?.grade?.deterministic_results?.every((check) => check.passed);
+  const checks = result?.grade?.deterministic_results || [];
+  const deterministicPassed = checks.length > 0 && checks.every((check) => check.passed);
+  const executionFailed = result?.execution && result.execution.status !== 'ok';
   const current = templates[exercise];
+
+  const downloadEvidence = () => {
+    const data = { recorded_at: new Date().toISOString(), exercise, session: session?.id, result };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `sandbox-${exercise}-evidence.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="app-shell">
@@ -374,14 +457,22 @@ function App() {
 
       <div className="app-frame">
         <aside className="sidebar">
+          <section className="account-section">
+            {account ? <><strong>Signed in as {account.username}</strong><button className="mini-action" disabled={busy} onClick={signOut}>Sign out</button></> : <form onSubmit={(event) => { event.preventDefault(); authenticate('login'); }}>
+              <label htmlFor="username">Local account</label>
+              <input id="username" aria-label="Username" autoComplete="username" placeholder="Username" minLength={3} maxLength={32} value={username} disabled={busy} onChange={event => setUsername(event.target.value)} required />
+              <input aria-label="Password" type="password" autoComplete="current-password" placeholder="Password (12+ characters)" minLength={12} maxLength={256} value={password} disabled={busy} onChange={event => setPassword(event.target.value)} required />
+              <div><button className="mini-action" disabled={busy} type="submit">Sign in</button><button className="mini-action" disabled={busy || username.length < 3 || password.length < 12} type="button" onClick={() => authenticate('register')}>Create account</button></div>
+            </form>}
+          </section>
           <section className="sidebar-section connection-section">
             <div className="section-label"><label htmlFor="tenant-token">Tenant token</label><span className={`connection-indicator ${token.trim() ? 'connected' : ''}`}><i />{token.trim() ? 'SET' : 'REQUIRED'}</span></div>
             <div className="token-field">
               <Icon name="key" size={15} />
-              <input id="tenant-token" aria-label="Tenant token" type={showToken ? 'text' : 'password'} autoComplete="off" placeholder="Paste local token" value={token} onChange={(event) => setToken(event.target.value)} />
+              <input id="tenant-token" aria-label="Tenant token" type={showToken ? 'text' : 'password'} autoComplete="off" placeholder="Paste local token" value={token} disabled={busy} onChange={(event) => { setToken(event.target.value); setSession(null); setResult(null); setMessage(''); }} />
               <button type="button" className="icon-button token-toggle" onClick={() => setShowToken(!showToken)} aria-label={showToken ? 'Hide token' : 'Show token'} title={showToken ? 'Hide token' : 'Show token'}>{showToken ? 'Hide' : 'Show'}</button>
             </div>
-            <p className="token-note">Not saved in this browser.</p>
+            <p className="token-note">Optional configured tenant token. Overrides account identity; not saved in this browser.</p>
           </section>
 
           <section className="sidebar-section exercise-section">
@@ -399,14 +490,20 @@ function App() {
             <div className="section-label"><span>Session</span></div>
             {session ? (
               <div className="session-card">
-                <div className="session-card-head"><span className={`session-status status-${session.state}`}><i />{session.state}</span><button className="icon-button" title="Clear session" aria-label="Clear session" onClick={() => { setSession(null); setResult(null); setMessage(''); }}>×</button></div>
+                <div className="session-card-head"><span className={`session-status status-${session.state}`}><i />{session.state}</span><button className="icon-button" title="Clear displayed result" aria-label="Clear displayed result" disabled={busy} onClick={() => { setSession(null); setResult(null); setMessage(''); }}>×</button></div>
                 <div className="session-id">{session.id}</div>
+                {['completed', 'failed', 'expired'].includes(session.state) && <button className="mini-action" disabled={busy} onClick={removeSession}>Delete session</button>}
                 {session.safePointDemo && <div className="session-controls">{session.state === 'paused' ? <button className="mini-action" onClick={() => safePoint('resume')} disabled={busy}><Icon name="refresh" size={14} />Resume</button> : <button className="mini-action" onClick={() => safePoint('pause')} disabled={busy}><Icon name="pause" size={14} />Save safe point</button>}</div>}
               </div>
             ) : (
               <div className="session-empty"><span className="session-empty-icon"><Icon name="terminal" size={17} /></span><strong>No session</strong></div>
             )}
-            {!session && exercise === 'inventory' && <button className="checkpoint-link" onClick={startCheckpointDemo} disabled={busy}>Start checkpoint demo <Icon name="arrow" size={14} /></button>}
+            {!session && exercise === 'inventory' && <button className="checkpoint-link" onClick={startCheckpointDemo} disabled={busy}>Application checkpoint <Icon name="arrow" size={14} /></button>}
+          </section>
+
+          <section className="sidebar-section"><div className="section-label">Saved sessions</div>
+            <button className="mini-action" disabled={busy || (!account && !token.trim())} onClick={refreshHistory}>Refresh sessions</button>
+            <div className="session-history">{history.map(entry => <button key={entry.session} disabled={busy} onClick={() => openSession(entry)}><strong>{templates[entry.exercise]?.label || entry.exercise}</strong><small>{entry.state} · {entry.grade_status || 'ungraded'}</small><small>{entry.session.slice(-12)}</small></button>)}</div>
           </section>
 
         </aside>
@@ -415,6 +512,7 @@ function App() {
           <div className="page-heading">
             <div>
               <h1>{current.label}</h1>
+              <p>Run learner code in a disposable microVM. Inspect the output and auditable checks.</p>
             </div>
             <div className="runtime-chip"><span className="runtime-chip-dot" />{current.mode} · isolated</div>
           </div>
@@ -426,7 +524,7 @@ function App() {
               </div>
               <div className="editor-body">
                 <div className="line-gutter" aria-hidden="true">{source.split('\n').map((_, index) => <span key={index}>{index + 1}</span>)}</div>
-                <textarea className="code-editor" aria-label="Exercise source code" spellCheck="false" value={source} onChange={(event) => setSource(event.target.value)} />
+                <textarea className="code-editor" aria-label="Exercise source code" spellCheck="false" value={source} disabled={busy} onChange={(event) => setSource(event.target.value)} />
               </div>
               <div className="editor-footer">
                 <span className="editor-language"><span className="language-dot" />{current.mode === 'LangGraph' ? 'Python workflow' : 'Python'}</span>
@@ -437,7 +535,7 @@ function App() {
             <aside className="run-column">
               <section className="input-pane">
                 <div className="pane-heading"><h2>Input</h2><span className="format-tag">JSON</span></div>
-                <textarea className="input-editor" aria-label="Exercise JSON input" spellCheck="false" value={payload} onChange={(event) => setPayload(event.target.value)} />
+                <textarea className="input-editor" aria-label="Exercise JSON input" spellCheck="false" value={payload} disabled={busy} onChange={(event) => setPayload(event.target.value)} />
                 {exercise === 'inventory' && <button className="sample-button" onClick={() => setPayload('{\n  "sku": "apple",\n  "quantity": 8\n}')}>Load insufficient-stock case <Icon name="arrow" size={13} /></button>}
               </section>
 
@@ -445,19 +543,24 @@ function App() {
                 <div className="pane-heading output-pane-heading"><h2>Output</h2>{gradeStatus && <span className={`grade-badge ${gradeStatus.toLowerCase()}`}>{gradeStatus.replace('_', ' ')}</span>}</div>
                 <div className={`output-body ${result ? 'has-result' : ''}`}>
                   {result ? <div className="result-content">
-                    <div className="result-state"><span className="result-check"><Icon name="check" size={15} /></span><span><strong>{gradeStatus || 'Execution complete'}</strong><small>{result.execution?.backend || 'Run completed'}</small></span></div>
+                    <div className={`result-state ${executionFailed ? 'execution-failed' : ''}`}><span className="result-check">{executionFailed ? '!' : <Icon name="check" size={15} />}</span><span><strong>{executionFailed ? 'Execution needs attention' : result.execution ? 'Execution complete' : 'Checkpoint operation complete'}</strong><small>{result.execution?.backend || 'Application safe point'}</small></span></div>
                     <pre className="program-output">{JSON.stringify(result.output ?? result, null, 2)}</pre>
                     {result.execution && <div className="timing-summary">
-                      {Number.isFinite(Number(result.execution.total_wall_seconds ?? result.execution.wall_seconds)) && <span><strong>{Number(result.execution.total_wall_seconds ?? result.execution.wall_seconds).toFixed(2)}s</strong> end-to-end</span>}
+                      {Number.isFinite(Number(result.execution.request_wall_seconds ?? result.execution.total_wall_seconds ?? result.execution.wall_seconds)) && <span><strong>{Number(result.execution.request_wall_seconds ?? result.execution.total_wall_seconds ?? result.execution.wall_seconds).toFixed(2)}s</strong> end-to-end</span>}
                       {Number.isFinite(Number(result.execution.wall_seconds)) && <span><strong>{Number(result.execution.wall_seconds).toFixed(2)}s</strong> execution</span>}
                     </div>}
                     {gradeStatus && <div className={`grade-summary ${gradeStatus.toLowerCase()}`}><strong>{gradeStatus === 'REVIEW' && deterministicPassed ? 'Checks passed · human review pending' : `Grade: ${gradeStatus.replace('_', ' ')}`}</strong>{gradeStatus === 'REVIEW' && <span>Semantic decision requires review.</span>}</div>}
+                    {checks.length > 0 && <div className="check-list"><strong>{checks.filter(check => check.passed).length}/{checks.length} deterministic checks passed</strong>{checks.map((check, index) => <div key={index}><span className={check.passed ? 'check-pass' : 'check-fail'}>{check.passed ? 'PASS' : 'FAIL'}</span> {(check.check || check.name || `Check ${index + 1}`).replaceAll('_', ' ')}</div>)}</div>}
+                    {result.execution?.snapshot?.restored && <p className="snapshot-note"><Icon name="refresh" size={14} /> VM snapshot restored successfully</p>}
+                    {result.grade?.reason && <p className="grade-reason">{result.grade.reason}</p>}
+                    <button className="sample-button" onClick={downloadEvidence}>Download run evidence <Icon name="arrow" size={13} /></button>
                     <details className="audit-details"><summary>Execution details</summary><pre>{JSON.stringify(result, null, 2)}</pre></details>
                   </div> : <div className="empty-output"><span className="empty-output-icon"><Icon name="terminal" size={19} /></span><strong>{message || (busy ? 'Running' : 'Output appears here')}</strong>{busy && <small>{runSeconds.toFixed(1)}s</small>}</div>}
                 </div>
               </section>
 
               <div className="run-controls">
+                <button className="guide-button" disabled={busy} onClick={() => selectExercise(exercise)}>Reset example</button>
                 <button className="run-button" onClick={run} disabled={busy}>
                   {busy ? <span className="button-spinner" /> : <Icon name="play" size={16} />}
                   {busy ? 'Running' : 'Run'}
@@ -466,7 +569,7 @@ function App() {
             </aside>
           </div>
 
-          <footer className="statusbar"><div><span className="status-led" /><span>{busy ? (message || 'Running') : session?.state || 'Ready'}</span><span className="status-separator">·</span><span>tenant-scoped</span></div></footer>
+          <footer className="statusbar" role="status"><div><span className="status-led" /><span>{message || (busy ? 'Running' : session?.state || 'Ready')}</span><span className="status-separator">·</span><span>tenant-scoped</span></div></footer>
         </main>
       </div>
     </div>

@@ -92,9 +92,14 @@ def main():
     try:
         bank = json.loads(Path(args.input).read_text(encoding='utf-8'))
         split = prepare_split(bank, seed=args.seed)
+        # Bind the assignment to the submitted artifacts, not only their IDs.
+        split['bank_sha256'] = hashlib.sha256(json.dumps(
+            bank, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()).hexdigest()
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         parser.error(str(exc))
     destination = Path(args.output)
+    if destination.exists():
+        parser.error('split output already exists; preserve the frozen assignment')
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(json.dumps(split, indent=2) + '\n', encoding='utf-8')
     print(json.dumps({key: value for key, value in split.items() if key != 'assignments'}, indent=2))

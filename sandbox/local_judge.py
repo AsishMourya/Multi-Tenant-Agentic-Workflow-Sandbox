@@ -4,6 +4,7 @@ The model receives observed controller evidence, never tools, credentials, or a
 guest filesystem.  A missing runtime is an infrastructure condition, not a grade.
 """
 import json
+import copy
 import re
 import subprocess
 import time
@@ -26,7 +27,9 @@ MANIFESTS = {
 
 
 class JudgeUnavailable(RuntimeError):
-    pass
+    def __init__(self, message, metadata=None):
+        super().__init__(message)
+        self.metadata = metadata or {}
 
 
 class JudgeInvalid(JudgeUnavailable):
@@ -46,16 +49,23 @@ class OllamaJudge:
     def _schema():
         criterion = {'type': 'object', 'additionalProperties': False,
                      'required': ['level', 'status', 'evidence', 'reason'],
-                     'properties': {'level': {'type': ['integer', 'null'], 'minimum': 0, 'maximum': 4},
+                     'properties': {'level': {'type': ['integer', 'null'], 'enum': [0, 1, 2, 3, 4, None]},
                                     'status': {'type': 'string', 'enum': ['APPLICABLE', 'NOT_APPLICABLE', 'ABSTAIN']},
                                     'evidence': {'type': 'string'}, 'reason': {'type': 'string'}}}
+        applicable = copy.deepcopy(criterion)
+        applicable['properties']['status'] = {'const': 'APPLICABLE'}
+        applicable['properties']['level'] = {'type': 'integer', 'enum': [0, 1, 2, 3, 4]}
+        abstained = copy.deepcopy(criterion)
+        abstained['properties']['status'] = {'enum': ['NOT_APPLICABLE', 'ABSTAIN']}
+        abstained['properties']['level'] = {'type': 'null'}
+        criterion = {'oneOf': [applicable, abstained]}
         return {'type': 'object', 'additionalProperties': False,
                 'required': ['criteria', 'conflicts_with_tests', 'confidence'],
                 'properties': {'criteria': {'type': 'object', 'additionalProperties': False,
                     'required': ['correctness', 'clarity'],
                     'properties': {'correctness': criterion, 'clarity': criterion}},
                     'conflicts_with_tests': {'type': 'boolean'},
-                    'confidence': {'type': 'number', 'minimum': 0, 'maximum': 1}}}
+                    'confidence': {'type': 'number', 'enum': [0, 0.25, 0.5, 0.75, 1]}}}
 
     @staticmethod
     def _prompt(exercise, observed):
@@ -75,11 +85,13 @@ class OllamaJudge:
                 "integer level 0-4. An absent explanation earns clarity level 0; do not mark it "
                 "NOT_APPLICABLE. If evidence is insufficient, use ABSTAIN with null level. "
                 "Cite a concrete observed fact for each score. Do not copy a score from this prompt. "
+                "Confidence must be one of 0, 0.25, 0.5, 0.75, 1, never a percentage. "
                 f"Exercise: {exercise}. Task: {manifest['task']}. RUBRIC={rubric}. "
                 f"OBSERVED_EVIDENCE={evidence}")
 
     def judge(self, exercise, observed):
         started = time.monotonic()
+        model_metadata = {}
         prompt = self._prompt(exercise, observed)
         if self.runner is not None:  # injected subprocess fixture for unit tests
             try:
@@ -101,13 +113,23 @@ class OllamaJudge:
                 raw, stderr = payload['response'], ''
             except (OSError, ValueError, KeyError, urllib.error.URLError) as exc:
                 raise JudgeUnavailable('local judge unavailable') from exc
+            try:
+                with urllib.request.urlopen('http://127.0.0.1:11434/api/ps', timeout=5) as response:
+                    models = json.loads(response.read()).get('models', [])
+                loaded = next((item for item in models if item.get('name') == self.model), {})
+                model_metadata = {'model_digest': loaded.get('digest', 'unreported'),
+                                  'resident_bytes': loaded.get('size'),
+                                  'quantization': loaded.get('details', {}).get('quantization_level')}
+            except (OSError, ValueError):
+                pass
+        metadata = {'model': self.model, 'runtime': 'ollama', **model_metadata,
+                    'latency_ms': round((time.monotonic() - started) * 1000, 2),
+                    'raw_response': raw, 'prompt_version': 'w1-rubric-2', 'stderr': stderr[-1000:]}
         try:
             judgment = json.loads(raw)
         except ValueError as exc:
-            raise JudgeInvalid('local judge returned invalid JSON') from exc
+            raise JudgeInvalid('local judge returned invalid JSON', metadata) from exc
         valid, reason = _valid_judgment(judgment, DEFAULT_WEIGHTS)
         if not valid:
-            raise JudgeInvalid(f'local judge returned invalid rubric: {reason}')
-        return {'judgment': judgment, 'metadata': {'model': self.model,
-                'runtime': 'ollama', 'latency_ms': round((time.monotonic() - started) * 1000, 2),
-                'stderr': stderr[-1000:]}}
+            raise JudgeInvalid(f'local judge returned invalid rubric: {reason}', metadata)
+        return {'judgment': judgment, 'metadata': metadata}

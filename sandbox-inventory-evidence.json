@@ -1,0 +1,140 @@
+{
+  "recorded_at": "2026-11-20T13:52:42.534Z",
+  "exercise": "inventory",
+  "session": "tenant-a-6272deb61391",
+  "result": {
+    "output": {
+      "sku": "apple",
+      "quantity": 8,
+      "available": 7,
+      "accepted": false,
+      "explanation": "Requested 8; available 7; accepted False."
+    },
+    "execution": {
+      "exit_code": 0,
+      "wall_seconds": 6.683,
+      "stdout": "{\"sku\": \"apple\", \"quantity\": 8, \"available\": 7, \"accepted\": false, \"explanation\": \"Requested 8; available 7; accepted False.\"}\n",
+      "stderr": "",
+      "status": "ok",
+      "backend": "firecracker",
+      "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+      "resource_policy": {
+        "vcpu_count": 1,
+        "mem_size_mib": 512,
+        "cpu_seconds": 15,
+        "address_bytes": 268435456,
+        "processes": 16,
+        "output_bytes": 65536,
+        "wall_seconds": 15,
+        "snapshot_wall_seconds": 120,
+        "writable_disk_bytes": 33554432
+      },
+      "tenant": "tenant-a",
+      "session": "tenant-a-6272deb61391",
+      "total_wall_seconds": 16.949,
+      "snapshot": {
+        "manifest": {
+          "schema": "firecracker-full-snapshot-1",
+          "tenant": "tenant-a",
+          "session": "tenant-a-6272deb61391",
+          "runtime_sha256": "81b90fee974407ac7d1dec2f527fbdadb52cc1057a228e7222546d6dc4b85b4a",
+          "policy_sha256": "a993fba431d59a712013ab545519d4f672ccf4c9d1061560d289f7869b321f0d",
+          "runtime": {
+            "firecracker_version": "v1.17.0",
+            "firecracker_sha256": "99ad0f5cd0514a88aad0e9ae8cfdb3cc3b4ab9d190e1194602406c786b5de7a5",
+            "kernel_sha256": "0001439e46db95c774ee4c01a51149589a237cac0bf920a266072d10e630e04c",
+            "image_sha256": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+            "python_version": "3.12",
+            "langgraph_version": "1.2.2"
+          },
+          "resource_policy": {
+            "vcpu_count": 1,
+            "mem_size_mib": 512,
+            "cpu_seconds": 15,
+            "address_bytes": 268435456,
+            "processes": 16,
+            "output_bytes": 65536,
+            "wall_seconds": 15,
+            "snapshot_wall_seconds": 120,
+            "writable_disk_bytes": 33554432
+          },
+          "created_at_utc": "2026-11-20T13:51:51.129981+00:00",
+          "artifacts": {
+            "machine.vmstate": {
+              "bytes": 14297,
+              "sha256": "3a283e59266cef5b8dda46a7e9e076cde08cbf592e367cb0f3a35b42f6619342"
+            },
+            "memory.mem": {
+              "bytes": 536870912,
+              "sha256": "8d39719d15aef8221639078fd8958f94579e29b79c8e56fc8e191626dd750725"
+            },
+            "disk.ext4": {
+              "bytes": 1073741824,
+              "sha256": "e0e08f1d9d32389fa925d1442da97b2497967779a4a6d1d8ec7b05cea93393e4"
+            }
+          }
+        },
+        "compute_released": true,
+        "restored": true
+      }
+    },
+    "grade": {
+      "schema_version": "1.0.0",
+      "grade_id": "91e8b260891c7cab32dc41d6",
+      "tenant": "tenant-a",
+      "session": "tenant-a-6272deb61391",
+      "at_utc": "2026-11-20T13:51:58.249175+00:00",
+      "submission_sha256": "8629fa99a60ad46efd478c73a49ffcfc611bfaf5f490c9801fd54caca518dcb7",
+      "exercise_version": "inventory:1.0.0",
+      "test_suite_version": "1.0.0",
+      "rubric_version": "1.0.0",
+      "model_id": "local-judge-unconfigured",
+      "model_digest": "unconfigured",
+      "prompt_version": "w1-rubric-1",
+      "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+      "deterministic_results": [
+        {
+          "check": "accepted_result",
+          "weight": 0.4,
+          "passed": true
+        },
+        {
+          "check": "authorized_tool_trace",
+          "weight": 0.3,
+          "passed": true
+        },
+        {
+          "check": "checkpoint_continuity",
+          "weight": 0.3,
+          "passed": true
+        }
+      ],
+      "mandatory_invariants_ok": true,
+      "judgments": [],
+      "score": null,
+      "status": "REVIEW",
+      "review_history": [],
+      "metrics": {
+        "application_state_checkpoint": false,
+        "full_vm_snapshot": true
+      }
+    },
+    "trace": [
+      {
+        "check": "accepted_result",
+        "weight": 0.4,
+        "passed": true
+      },
+      {
+        "check": "authorized_tool_trace",
+        "weight": 0.3,
+        "passed": true
+      },
+      {
+        "check": "checkpoint_continuity",
+        "weight": 0.3,
+        "passed": true
+      }
+    ]
+  }
+}

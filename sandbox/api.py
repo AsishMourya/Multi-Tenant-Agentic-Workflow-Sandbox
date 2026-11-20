@@ -6,6 +6,7 @@ Transport is stdlib-only so the service can run from a clean checkout.
 import json
 import mimetypes
 import traceback
+import threading
 from http.cookies import SimpleCookie
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -27,6 +28,7 @@ class SandboxService:
         # Server-owned provider only. Browser payloads never influence it.
         self.judge_provider = judge_provider
         self.auth = auth
+        self.gateway.browser_auth = auth
 
     def sign_up(self, body):
         if self.auth is None:
@@ -78,7 +80,8 @@ class SandboxService:
 
     def resume(self, credential, session):
         output, trace = self.gateway.resume(credential, session)
-        return {'output': output, 'trace': trace}
+        self.gateway.finish_safe_point(credential, session)
+        return {'output': output, 'trace': trace, 'state': 'completed'}
 
 
 def handler_for(service):
@@ -141,10 +144,19 @@ def handler_for(service):
             if self.command == 'POST' and parts == ['v1', 'auth', 'login']:
                 token, result = service.sign_in(self._body())
                 return HTTPStatus.OK, result, token
-            try:
-                credential = bearer(self.headers)
-            except PermissionError:
+            if parts == ['v1', 'auth', 'me'] and self.command == 'GET':
                 credential = service.cookie_credential(self.headers.get('Cookie'))
+                return HTTPStatus.OK, service.auth.identity(credential)
+            if parts == ['v1', 'auth', 'logout'] and self.command == 'POST':
+                credential = service.cookie_credential(self.headers.get('Cookie'))
+                service.auth.logout(credential)
+                return HTTPStatus.OK, {'signed_out': True}, ''
+            if self.headers.get('Authorization'):
+                credential = bearer(self.headers)
+            else:
+                credential = service.cookie_credential(self.headers.get('Cookie'))
+            if self.command == 'GET' and parts == ['v1', 'sessions']:
+                return HTTPStatus.OK, {'sessions': service.gateway.list_sessions(credential)}
             if self.command == 'POST' and parts == ['v1', 'sessions']:
                 return HTTPStatus.CREATED, service.create(credential, self._body())
             if len(parts) >= 3 and parts[:2] == ['v1', 'sessions']:
@@ -161,6 +173,8 @@ def handler_for(service):
                     return HTTPStatus.OK, service.pause(credential, session, self._body())
                 if self.command == 'POST' and parts[3:] == ['resume']:
                     return HTTPStatus.OK, service.resume(credential, session)
+                if self.command == 'POST' and parts[3:] == ['cancel']:
+                    return HTTPStatus.OK, service.gateway.cancel(credential, session)
             raise ValueError('unknown endpoint')
 
         def _handle(self):
@@ -170,8 +184,9 @@ def handler_for(service):
                 dispatched = self._dispatch()
                 if len(dispatched) == 3:
                     status, result, token = dispatched
+                    age = 43200 if token else 0
                     return self._send(status, result, {'Set-Cookie':
-                        f'sandbox_session={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200'})
+                        f'sandbox_session={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age={age}'})
                 status, result = dispatched
                 self._send(status, result)
             except PermissionError as exc:
@@ -200,7 +215,18 @@ def handler_for(service):
 
 def serve(service, host='127.0.0.1', port=8080):
     server = ThreadingHTTPServer((host, port), handler_for(service))
+    stopped = threading.Event()
+    def janitor():
+        while not stopped.wait(1):
+            try:
+                service.gateway.platform.reap_expired()
+            except Exception:
+                traceback.print_exc()
+    maintenance = threading.Thread(target=janitor, name='sandbox-janitor', daemon=True)
+    maintenance.start()
     try:
         server.serve_forever()
     finally:
+        stopped.set()
+        maintenance.join()
         server.server_close()

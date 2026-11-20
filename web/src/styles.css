@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
-
 :root {
   font-family: 'DM Sans', 'Segoe UI', sans-serif;
   color: #17241f;
@@ -190,4 +188,45 @@ button:disabled { cursor: not-allowed !important; opacity: .58; }
   .run-column { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); grid-template-rows: minmax(200px, auto) auto; }
   .output-pane { min-height: 270px; }
   .run-controls { grid-column: 1 / -1; }
+}
+
+/* System fonts keep the interface usable offline. */
+.main-content { display: flex; flex-direction: column; }
+.account-section { margin-bottom: 22px; font-size: 12px; }
+.account-section input { width: 100%; margin: 7px 0; padding: 9px; background: #102b22; color: #fff; border: 1px solid #53705e; border-radius: 6px; font-size: 12px; }
+.account-section .mini-action { margin: 6px 6px 0 0; }
+.session-history { max-height: 240px; overflow: auto; margin-top: 10px; }
+.session-history button { width: 100%; padding: 8px; text-align: left; background: #204335; color: #edf2eb; border: 1px solid #365545; border-radius: 6px; margin-bottom: 6px; cursor: pointer; }
+.session-history strong, .session-history small { display: block; font-size: 11px; margin: 3px 0; }
+.workbench { flex: 1; }
+.guide-button { padding: 8px 11px; background: #fff; border: 1px solid #cbd6c8; border-radius: 7px; color: #31513f; cursor: pointer; font-size: 12px; }
+.code-editor, .line-gutter { font-size: 12px; }
+.input-editor, .program-output { font-size: 12px; }
+.exercise-copy strong, .pane-heading h2 { font-size: 13px; }
+.exercise-copy small, .token-note, .page-heading p { font-size: 11px; }
+.result-state strong, .grade-summary, .empty-output strong { font-size: 12px; }
+.grade-summary span, .timing-summary, .audit-details summary { font-size: 11px; }
+.check-list { margin-top: 14px; font-size: 11px; line-height: 1.8; }
+.check-list > strong { display: block; margin-bottom: 5px; }
+.check-pass { color: #24613d; font-weight: bold; }
+.check-fail { color: #a43e3b; font-weight: bold; }
+.snapshot-note { display: flex; align-items: center; gap: 6px; padding: 9px; background: #edf7ed; color: #24613d; border-radius: 6px; font-size: 11px; }
+.grade-reason { color: #80622d; font-size: 11px; }
+.execution-failed .result-check { color: #a43e3b; background: #fff0ed; }
+.grade-badge.fail_invariant, .grade-summary.fail_invariant { color: #a43e3b; background: #fff0ed; }
+.statusbar { min-height: 36px; font-size: 10px; }
+@media (max-width: 700px) {
+  .topbar { grid-template-columns: 1fr auto; }
+  .topbar-center { display: none; }
+  .brand { padding: 0 12px; }
+  .topbar-right { padding: 0 12px; }
+  .app-frame { display: block; }
+  .sidebar { padding: 16px; }
+  .exercise-section { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .exercise-section .section-label { grid-column: 1 / -1; }
+  .main-content { padding: 20px 14px 0; }
+  .page-heading { align-items: start; }
+  .runtime-chip { display: none; }
+  .run-column { display: flex; flex-direction: column; }
+  .statusbar { margin: 14px -14px 0; padding: 8px 14px; }
 }

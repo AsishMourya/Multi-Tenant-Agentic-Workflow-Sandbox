@@ -23,7 +23,7 @@ def main(args):
                   'all_pass': True}
     except JudgeUnavailable as exc:
         result = {'at_utc': datetime.now(timezone.utc).isoformat(), 'model': args.model,
-                  'error': str(exc), 'all_pass': False}
+                  'error': str(exc), 'metadata': exc.metadata, 'all_pass': False}
     path = Path(args.output)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(result, indent=2), encoding='utf-8')

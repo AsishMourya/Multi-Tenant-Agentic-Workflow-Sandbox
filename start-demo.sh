@@ -20,9 +20,17 @@ fi
 if [[ ! -x .venv-linux/bin/python ]]; then
   python3 -m venv .venv-linux
 fi
-.venv-linux/bin/python -m pip install -r requirements-lock.txt
+if [[ "${1:-}" == "--offline" ]]; then
+  .venv-linux/bin/python -m pip check
+else
+  .venv-linux/bin/python -m pip install --disable-pip-version-check -r requirements-lock.txt
+fi
 
 if [[ ! -x web/node_modules/.bin/vite || ! -x web/node_modules/esbuild-linux-64/bin/esbuild ]]; then
+  if [[ "${1:-}" == "--offline" ]]; then
+    echo "Offline dependencies are missing. Run bash start-demo.sh once while online." >&2
+    exit 1
+  fi
   npm ci --prefix web
 fi
 npm --prefix web run build
@@ -43,8 +51,12 @@ sudo -H env PYTHONNOUSERSITE=1 .venv-linux/bin/python scripts/feasibility.py \
   --backend-root /root/dat-backend --output /tmp/dat-sandbox-preflight.json || true
 echo
 echo "Starting the local API. Keep this terminal open; press Ctrl+C to stop."
+judge_args=()
+if [[ -n "${DAT_JUDGE_MODEL:-}" ]]; then
+  judge_args=(--judge-model "$DAT_JUDGE_MODEL")
+fi
 exec sudo -H env PYTHONNOUSERSITE=1 .venv-linux/bin/python scripts/serve.py \
   --credentials config/tenants.local.json \
   --state-root work/demo-state-v2 \
   --backend-root /root/dat-backend \
-  --host 127.0.0.1 --port 8080
+  --host 127.0.0.1 --port 8080 "${judge_args[@]}"

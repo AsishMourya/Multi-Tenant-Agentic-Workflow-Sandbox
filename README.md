@@ -6,7 +6,6 @@ disposable Firecracker environments, enforces tenant ownership and resource
 policy, brokers approved mock-tool calls, and records deterministic plus optional
 semantic grading evidence.
 
-## Run the web demo
 
 Run the app from WSL Ubuntu only. From the repository directory in WSL:
 

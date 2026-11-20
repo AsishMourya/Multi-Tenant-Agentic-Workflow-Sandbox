@@ -66,3 +66,14 @@ class LocalAuth:
         if not row or datetime.fromisoformat(row[1]) <= _now():
             raise PermissionError('sign in required')
         return row[0]
+
+    def identity(self, token):
+        tenant = self.tenant_for(token)
+        row = self.db.execute('SELECT username FROM accounts WHERE tenant=?', (tenant,)).fetchone()
+        if row is None:
+            raise PermissionError('account unavailable')
+        return {'username': row[0], 'tenant': tenant}
+
+    def logout(self, token):
+        self.db.execute('DELETE FROM browser_sessions WHERE digest=?',
+                        (hashlib.sha256(token.encode()).digest(),))

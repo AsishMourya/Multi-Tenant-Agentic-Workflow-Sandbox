@@ -47,6 +47,8 @@ def main(args):
     except KeyboardInterrupt:
         pass
     finally:
+        if 'auth' in locals():
+            auth.db.close()
         platform.close()
 
 
