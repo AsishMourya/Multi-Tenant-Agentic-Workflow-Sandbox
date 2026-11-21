@@ -6,7 +6,7 @@ tenant sessions, limits resources, brokers approved mock inventory calls, and
 records deterministic checks plus optional provisional model judgments. Six
 starter exercises run; four workflows restore VM snapshots. Human-labelled
 grading accuracy is **not measured**. See the [project report](docs/Project_Report.pdf)
-and [architecture decisions](docs/Architecture_Decision_Records.pdf).
+and [architecture decisions](docs/Architecture_Decision_Records.md).
 
 ## Requirements and setup
 
@@ -95,5 +95,5 @@ Only use synthetic fixtures and local tokens for replay.
 This is a loopback-only college prototype, not a public deployment. Snapshots
 are same-host and pinned-runtime; bounded probes are not proof of universal
 isolation or prompt-injection resistance. The full results, limitations, and
-remaining M7/M8 work are in the [report](docs/Project_Report.pdf). The two PDFs
-in `docs/` are the submission documents.
+remaining M7/M8 work are in the [report](docs/Project_Report.pdf). The report PDF
+and ADR log in `docs/` are the submission documents.
