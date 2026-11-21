@@ -38,5 +38,4 @@ config/tenants.demo.json
 *.fls
 *.fdb_latexmk
 *.synctex.gz
-SRS.md
 DAT CS5903 - Final Project Submission and Handover Guide.docx

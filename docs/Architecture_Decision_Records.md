@@ -162,7 +162,7 @@ made on that date. No mentor approval is inferred from implementation or tests.
   record exists, append its actual old approach, new evidence, alternatives,
   selected method, impact, and approval link here without replacing this record.
 - **Evidence and validation:** [original project understanding](../DAT_Group44.pdf),
-  [current status](../PROJECT_STATUS.md), repository history. These establish the
+  [project report](Project_Report.md), repository history. These establish the
   plan and current implementation, not the 9 October decision.
 - **Revisit trigger:** A verifiable contemporaneous record or mentor confirmation
   is supplied. Record subsequent fundamental changes and approval separately.

@@ -57,8 +57,8 @@ evidence. They are useful for verification, but the audience need not run them.
 The platform registers six exercise IDs: two Python tasks and four inventory-backed
 LangGraph tasks. It uses Firecracker on WSL/Linux for learner code. All six dashboard
 starter examples passed live Firecracker execution and deterministic checks again on
-2026-11-20; the four workflows also restored full VM snapshots. See
-`PROJECT_STATUS.md` for current M1-M8 evidence and open acceptance work.
+2026-11-20; the four workflows also restored full VM snapshots. See the
+[project report](docs/Project_Report.md) for the current M1-M8 evidence and open acceptance work.
 
 ## Start the WSL Demo
 
@@ -278,7 +278,7 @@ hardware, VM memory, snapshot size, and cleanup lag are not in this report.
 - The installed Qwen2.5 0.5B judge has a schema-valid two-call smoke test, not
   demonstrated accuracy. Invalid judgments yield **REVIEW**, not a trusted semantic
   score or an infrastructure retry. Human-label calibration remains unmeasured.
-- E2B Embed has a desk feasibility comparison in `PROJECT_STATUS.md`, but no local
+- E2B Embed is discussed as an alternative in the [ADR log](docs/Architecture_Decision_Records.md), but no local
   deployment or performance benchmark. The current tested backend remains direct
   Firecracker; mentor approval of that choice is still needed.
 - The current `evaluation/labels.template.json` is intentionally empty. Collect real
