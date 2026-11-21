@@ -37,7 +37,7 @@ def main(output):
             review = platform.submit('tenant-a', review_session, [],
                                      [judge(0), judge(0)])['grade']
             results['review_record'] = platform.add_review(
-                review['grade_id'], 'mentor-demo', 'PASS', 'boundary case checked')
+                review['grade_id'], 'reviewer-demo', 'PASS', 'boundary case checked')
             results['review_records'] = platform.grades
             result_path = Path(output)
             result_path.write_text(json.dumps(results, indent=2), encoding='utf-8')
