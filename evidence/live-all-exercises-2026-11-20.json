@@ -1,0 +1,115 @@
+{
+  "all_pass": true,
+  "results": {
+    "orders-cents": {
+      "http_status": 200,
+      "session": "tenant-a-61c1d590cab3",
+      "execution_status": "ok",
+      "backend": "firecracker",
+      "snapshot_restored": false,
+      "grade": "REVIEW",
+      "deterministic_checks_passed": true,
+      "latency_seconds": 28.39,
+      "output": {
+        "by_sku": {
+          "apple": 250,
+          "pear": 80
+        },
+        "total_cents": 330
+      },
+      "pass": true
+    },
+    "inventory": {
+      "http_status": 200,
+      "session": "tenant-a-218d274a95cb",
+      "execution_status": "ok",
+      "backend": "firecracker",
+      "snapshot_restored": true,
+      "grade": "REVIEW",
+      "deterministic_checks_passed": true,
+      "latency_seconds": 21.92,
+      "output": {
+        "sku": "apple",
+        "quantity": 2,
+        "available": 7,
+        "accepted": true,
+        "explanation": "Requested 2; available 7; accepted True."
+      },
+      "pass": true
+    },
+    "daily-revenue": {
+      "http_status": 200,
+      "session": "tenant-a-f96c55e719d4",
+      "execution_status": "ok",
+      "backend": "firecracker",
+      "snapshot_restored": false,
+      "grade": "REVIEW",
+      "deterministic_checks_passed": true,
+      "latency_seconds": 23.52,
+      "output": {
+        "by_day": {
+          "2026-01-01": 2000,
+          "2026-01-02": 900
+        },
+        "total_cents": 2900
+      },
+      "pass": true
+    },
+    "stock-reorder": {
+      "http_status": 200,
+      "session": "tenant-a-61d1e23cfc85",
+      "execution_status": "ok",
+      "backend": "firecracker",
+      "snapshot_restored": true,
+      "grade": "REVIEW",
+      "deterministic_checks_passed": true,
+      "latency_seconds": 17.9,
+      "output": {
+        "sku": "apple",
+        "target_quantity": 10,
+        "available": 7,
+        "reorder_quantity": 3,
+        "explanation": "Reorder 3 units to reach 10."
+      },
+      "pass": true
+    },
+    "inventory-brief": {
+      "http_status": 200,
+      "session": "tenant-a-bb5104eba2c5",
+      "execution_status": "ok",
+      "backend": "firecracker",
+      "snapshot_restored": true,
+      "grade": "REVIEW",
+      "deterministic_checks_passed": true,
+      "latency_seconds": 18.77,
+      "output": {
+        "sku": "pear",
+        "quantity": 4,
+        "available": 3,
+        "accepted": false,
+        "summary": "pear: requested 4; 3 available; short."
+      },
+      "pass": true
+    },
+    "order-explainer": {
+      "http_status": 200,
+      "session": "tenant-a-d8dc7726a129",
+      "execution_status": "ok",
+      "backend": "firecracker",
+      "snapshot_restored": true,
+      "grade": "REVIEW",
+      "deterministic_checks_passed": true,
+      "latency_seconds": 17.68,
+      "output": {
+        "sku": "apple",
+        "quantity": 2,
+        "unit_cents": 125,
+        "available": 7,
+        "subtotal_cents": 250,
+        "accepted": true,
+        "explanation": "2 x 125 cents = 250 cents; 7 units available."
+      },
+      "pass": true
+    }
+  }
+}

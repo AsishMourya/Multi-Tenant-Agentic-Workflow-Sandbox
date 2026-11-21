@@ -60,10 +60,15 @@ def main():
     parser.add_argument('--base-url', default='http://127.0.0.1:8080')
     parser.add_argument('--output', required=True)
     parser.add_argument('--repeats', type=int, choices=range(1, 4), default=1)
+    parser.add_argument('--ids', help='optional comma-separated submission IDs for focused replay')
     args = parser.parse_args()
     bank = json.loads(Path(args.bank).read_text(encoding='utf-8'))
     split = json.loads(Path(args.split).read_text(encoding='utf-8'))
     assignments = validate_bank(bank, split)
+    selected_ids = set(args.ids.split(',')) if args.ids else None
+    if selected_ids is not None and (not selected_ids or '' in selected_ids or
+                                     selected_ids - set(assignments)):
+        parser.error('--ids must name submissions in the frozen bank')
     token = json.loads(Path(args.credentials).read_text(encoding='utf-8'))['tenant-a']
     destination = Path(args.output)
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -78,6 +83,8 @@ def main():
             failures += bool(recorded.get('infrastructure_error'))
     base = args.base_url.rstrip('/')
     for row in bank['submissions']:
+        if selected_ids is not None and row['id'] not in selected_ids:
+            continue
         assignment = assignments[row['id']]
         if args.partition != 'all' and assignment['split'] != args.partition:
             continue

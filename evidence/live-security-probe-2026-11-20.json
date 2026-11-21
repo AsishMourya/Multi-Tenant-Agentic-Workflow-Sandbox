@@ -1,0 +1,152 @@
+{
+  "at_utc": "2026-11-20T14:00:57.071757+00:00",
+  "scope": "defined live guest filesystem/environment/broker corpus only",
+  "checks": {
+    "protected_runtime_files": true,
+    "host_mount_absent": true,
+    "direct_broker_bypass": true,
+    "environment_canary_absent": true,
+    "tenant_filesystem_isolation": true
+  },
+  "observations": {
+    "protected_runtime_files": {
+      "exit_code": 0,
+      "wall_seconds": 0.074,
+      "stdout": "{\"blocked\": [\"/root/dat_input.json\", \"/root/dat_config.json\", \"/root/dat_runner.py\"]}\n",
+      "stderr": "",
+      "status": "ok",
+      "backend": "firecracker",
+      "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+      "resource_policy": {
+        "vcpu_count": 1,
+        "mem_size_mib": 512,
+        "cpu_seconds": 15,
+        "address_bytes": 268435456,
+        "processes": 16,
+        "output_bytes": 65536,
+        "wall_seconds": 15,
+        "snapshot_wall_seconds": 120,
+        "writable_disk_bytes": 33554432
+      },
+      "tenant": "security-tenant",
+      "session": "security-protected_runtime_files",
+      "total_wall_seconds": 5.045
+    },
+    "host_mount_absent": {
+      "exit_code": 0,
+      "wall_seconds": 0.072,
+      "stdout": "{\"host_mount_present\": false}\n",
+      "stderr": "",
+      "status": "ok",
+      "backend": "firecracker",
+      "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+      "resource_policy": {
+        "vcpu_count": 1,
+        "mem_size_mib": 512,
+        "cpu_seconds": 15,
+        "address_bytes": 268435456,
+        "processes": 16,
+        "output_bytes": 65536,
+        "wall_seconds": 15,
+        "snapshot_wall_seconds": 120,
+        "writable_disk_bytes": 33554432
+      },
+      "tenant": "security-tenant",
+      "session": "security-host_mount_absent",
+      "total_wall_seconds": 3.766
+    },
+    "direct_broker_bypass": {
+      "exit_code": 0,
+      "wall_seconds": 0.071,
+      "stdout": "{\"blocked\": true}\n",
+      "stderr": "",
+      "status": "ok",
+      "backend": "firecracker",
+      "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+      "resource_policy": {
+        "vcpu_count": 1,
+        "mem_size_mib": 512,
+        "cpu_seconds": 15,
+        "address_bytes": 268435456,
+        "processes": 16,
+        "output_bytes": 65536,
+        "wall_seconds": 15,
+        "snapshot_wall_seconds": 120,
+        "writable_disk_bytes": 33554432
+      },
+      "tenant": "security-tenant",
+      "session": "security-direct_broker_bypass",
+      "total_wall_seconds": 3.589
+    },
+    "environment_canary_absent": {
+      "exit_code": 0,
+      "wall_seconds": 0.074,
+      "stdout": "{\"canary_present\": false}\n",
+      "stderr": "",
+      "status": "ok",
+      "backend": "firecracker",
+      "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+      "resource_policy": {
+        "vcpu_count": 1,
+        "mem_size_mib": 512,
+        "cpu_seconds": 15,
+        "address_bytes": 268435456,
+        "processes": 16,
+        "output_bytes": 65536,
+        "wall_seconds": 15,
+        "snapshot_wall_seconds": 120,
+        "writable_disk_bytes": 33554432
+      },
+      "tenant": "security-tenant",
+      "session": "security-environment_canary_absent",
+      "total_wall_seconds": 3.746
+    },
+    "tenant_a_write": {
+      "exit_code": 0,
+      "wall_seconds": 0.073,
+      "stdout": "{\"own_marker\": \"tenant-a-only\"}\n",
+      "stderr": "",
+      "status": "ok",
+      "backend": "firecracker",
+      "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+      "resource_policy": {
+        "vcpu_count": 1,
+        "mem_size_mib": 512,
+        "cpu_seconds": 15,
+        "address_bytes": 268435456,
+        "processes": 16,
+        "output_bytes": 65536,
+        "wall_seconds": 15,
+        "snapshot_wall_seconds": 120,
+        "writable_disk_bytes": 33554432
+      },
+      "tenant": "security-tenant-a",
+      "session": "security-isolation-write",
+      "total_wall_seconds": 3.864
+    },
+    "tenant_b_read": {
+      "exit_code": 0,
+      "wall_seconds": 0.071,
+      "stdout": "{\"foreign_marker_present\": false}\n",
+      "stderr": "",
+      "status": "ok",
+      "backend": "firecracker",
+      "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+      "resource_policy": {
+        "vcpu_count": 1,
+        "mem_size_mib": 512,
+        "cpu_seconds": 15,
+        "address_bytes": 268435456,
+        "processes": 16,
+        "output_bytes": 65536,
+        "wall_seconds": 15,
+        "snapshot_wall_seconds": 120,
+        "writable_disk_bytes": 33554432
+      },
+      "tenant": "security-tenant-b",
+      "session": "security-isolation-read",
+      "total_wall_seconds": 3.893
+    }
+  },
+  "all_pass": true
+}

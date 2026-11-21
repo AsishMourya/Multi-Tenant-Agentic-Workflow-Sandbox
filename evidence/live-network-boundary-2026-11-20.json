@@ -1,0 +1,214 @@
+{
+  "at_utc": "2026-11-20T14:09:24.074882+00:00",
+  "scope": "host-local IPv4/IPv6 TCP and UDP DNS-formatted probes; not universal egress proof",
+  "results": {
+    "NET-01": {
+      "destination": {
+        "address": "127.0.0.1",
+        "port": 51753,
+        "transport": "TCP"
+      },
+      "checks": {
+        "guest_denied": true,
+        "observer_positive_control": true,
+        "destination_observed_no_guest_traffic": true,
+        "benign_passed": true,
+        "overlapped": true
+      },
+      "attack": {
+        "start_monotonic": 225.969217329,
+        "end_monotonic": 232.025392425,
+        "result": {
+          "exit_code": 0,
+          "wall_seconds": 0.124,
+          "stdout": "{\"blocked\": true}\n",
+          "stderr": "",
+          "status": "ok",
+          "backend": "firecracker",
+          "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+          "resource_policy": {
+            "vcpu_count": 1,
+            "mem_size_mib": 512,
+            "cpu_seconds": 15,
+            "address_bytes": 268435456,
+            "processes": 16,
+            "output_bytes": 65536,
+            "wall_seconds": 15,
+            "snapshot_wall_seconds": 120,
+            "writable_disk_bytes": 33554432
+          },
+          "tenant": "network-tenant-a",
+          "session": "NET-01",
+          "total_wall_seconds": 5.002
+        }
+      },
+      "benign": {
+        "start_monotonic": 225.969591655,
+        "end_monotonic": 234.025728762,
+        "result": {
+          "exit_code": 0,
+          "wall_seconds": 2.09,
+          "stdout": "{\"value\": 42}\n",
+          "stderr": "",
+          "status": "ok",
+          "backend": "firecracker",
+          "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+          "resource_policy": {
+            "vcpu_count": 1,
+            "mem_size_mib": 512,
+            "cpu_seconds": 15,
+            "address_bytes": 268435456,
+            "processes": 16,
+            "output_bytes": 65536,
+            "wall_seconds": 15,
+            "snapshot_wall_seconds": 120,
+            "writable_disk_bytes": 33554432
+          },
+          "tenant": "network-tenant-b",
+          "session": "NET-01-control",
+          "total_wall_seconds": 6.962
+        }
+      },
+      "all_pass": true
+    },
+    "NET-02": {
+      "destination": {
+        "address": "::1",
+        "port": 33839,
+        "transport": "TCP"
+      },
+      "checks": {
+        "guest_denied": true,
+        "observer_positive_control": true,
+        "destination_observed_no_guest_traffic": true,
+        "benign_passed": true,
+        "overlapped": true
+      },
+      "attack": {
+        "start_monotonic": 234.497729001,
+        "end_monotonic": 239.527650452,
+        "result": {
+          "exit_code": 0,
+          "wall_seconds": 0.072,
+          "stdout": "{\"blocked\": true}\n",
+          "stderr": "",
+          "status": "ok",
+          "backend": "firecracker",
+          "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+          "resource_policy": {
+            "vcpu_count": 1,
+            "mem_size_mib": 512,
+            "cpu_seconds": 15,
+            "address_bytes": 268435456,
+            "processes": 16,
+            "output_bytes": 65536,
+            "wall_seconds": 15,
+            "snapshot_wall_seconds": 120,
+            "writable_disk_bytes": 33554432
+          },
+          "tenant": "network-tenant-a",
+          "session": "NET-02",
+          "total_wall_seconds": 4.072
+        }
+      },
+      "benign": {
+        "start_monotonic": 234.498194557,
+        "end_monotonic": 241.557009399,
+        "result": {
+          "exit_code": 0,
+          "wall_seconds": 2.084,
+          "stdout": "{\"value\": 42}\n",
+          "stderr": "",
+          "status": "ok",
+          "backend": "firecracker",
+          "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+          "resource_policy": {
+            "vcpu_count": 1,
+            "mem_size_mib": 512,
+            "cpu_seconds": 15,
+            "address_bytes": 268435456,
+            "processes": 16,
+            "output_bytes": 65536,
+            "wall_seconds": 15,
+            "snapshot_wall_seconds": 120,
+            "writable_disk_bytes": 33554432
+          },
+          "tenant": "network-tenant-b",
+          "session": "NET-02-control",
+          "total_wall_seconds": 6.105
+        }
+      },
+      "all_pass": true
+    },
+    "NET-03": {
+      "destination": {
+        "address": "127.0.0.1",
+        "port": 56625,
+        "transport": "UDP"
+      },
+      "checks": {
+        "guest_denied": true,
+        "observer_positive_control": true,
+        "destination_observed_no_guest_traffic": true,
+        "benign_passed": true,
+        "overlapped": true
+      },
+      "attack": {
+        "start_monotonic": 242.013426847,
+        "end_monotonic": 246.9147423,
+        "result": {
+          "exit_code": 0,
+          "wall_seconds": 0.07,
+          "stdout": "{\"blocked\": true}\n",
+          "stderr": "",
+          "status": "ok",
+          "backend": "firecracker",
+          "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+          "resource_policy": {
+            "vcpu_count": 1,
+            "mem_size_mib": 512,
+            "cpu_seconds": 15,
+            "address_bytes": 268435456,
+            "processes": 16,
+            "output_bytes": 65536,
+            "wall_seconds": 15,
+            "snapshot_wall_seconds": 120,
+            "writable_disk_bytes": 33554432
+          },
+          "tenant": "network-tenant-a",
+          "session": "NET-03",
+          "total_wall_seconds": 3.955
+        }
+      },
+      "benign": {
+        "start_monotonic": 242.013844974,
+        "end_monotonic": 248.881970915,
+        "result": {
+          "exit_code": 0,
+          "wall_seconds": 2.085,
+          "stdout": "{\"value\": 42}\n",
+          "stderr": "",
+          "status": "ok",
+          "backend": "firecracker",
+          "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+          "resource_policy": {
+            "vcpu_count": 1,
+            "mem_size_mib": 512,
+            "cpu_seconds": 15,
+            "address_bytes": 268435456,
+            "processes": 16,
+            "output_bytes": 65536,
+            "wall_seconds": 15,
+            "snapshot_wall_seconds": 120,
+            "writable_disk_bytes": 33554432
+          },
+          "tenant": "network-tenant-b",
+          "session": "NET-03-control",
+          "total_wall_seconds": 5.908
+        }
+      },
+      "all_pass": true
+    }
+  },
+  "all_pass": true
+}

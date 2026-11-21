@@ -1,0 +1,102 @@
+{
+  "scope": "engineering execution measurements; no human-label accuracy claim",
+  "at_utc": "2026-11-20T19:41:15.755746+00:00",
+  "bank_sha256": "f529051bd3b8979680e205f2c3ae56982ac3756ae5f31f753bed39a718cc4784",
+  "frozen_bank_size": 60,
+  "observed_runs": 60,
+  "unique_submissions": 60,
+  "status_counts": {
+    "FAIL_INVARIANT": 48,
+    "REVIEW": 12
+  },
+  "by_exercise": {
+    "daily-revenue": {
+      "FAIL_INVARIANT": 8,
+      "REVIEW": 2
+    },
+    "inventory": {
+      "FAIL_INVARIANT": 8,
+      "REVIEW": 2
+    },
+    "inventory-brief": {
+      "FAIL_INVARIANT": 8,
+      "REVIEW": 2
+    },
+    "order-explainer": {
+      "FAIL_INVARIANT": 8,
+      "REVIEW": 2
+    },
+    "orders-cents": {
+      "FAIL_INVARIANT": 8,
+      "REVIEW": 2
+    },
+    "stock-reorder": {
+      "FAIL_INVARIANT": 8,
+      "REVIEW": 2
+    }
+  },
+  "by_partition": {
+    "calibration": {
+      "FAIL_INVARIANT": 16,
+      "REVIEW": 4
+    },
+    "held_out": {
+      "FAIL_INVARIANT": 32,
+      "REVIEW": 8
+    }
+  },
+  "by_construction": {
+    "constant": {
+      "FAIL_INVARIANT": 12
+    },
+    "invalid-json": {
+      "FAIL_INVARIANT": 12
+    },
+    "invalid-schema": {
+      "FAIL_INVARIANT": 12
+    },
+    "runtime-error": {
+      "FAIL_INVARIANT": 12
+    },
+    "starter": {
+      "REVIEW": 12
+    }
+  },
+  "matched_score_shifts_vs_starter": {
+    "partly-correct": {
+      "matched_pairs": 0,
+      "mean_score_delta": null
+    },
+    "ambiguous": {
+      "matched_pairs": 0,
+      "mean_score_delta": null
+    },
+    "adversarial": {
+      "matched_pairs": 0,
+      "mean_score_delta": null
+    }
+  },
+  "infrastructure_errors": 0,
+  "end_to_end_latency": {
+    "n": 60,
+    "median_ms": 5551.22,
+    "p95_ms": 26160.13
+  },
+  "judge_calls": 0,
+  "judge_latency": {
+    "n": 0,
+    "median_ms": null,
+    "p95_ms": null
+  },
+  "judge_token_usage": {
+    "measured_calls": 0,
+    "prompt_tokens": null,
+    "completion_tokens": null
+  },
+  "judge_peak_resident_bytes": null,
+  "judge_error_counts": {},
+  "provisional_score_count": 0,
+  "snapshot_runs": 8,
+  "snapshot_restored": 8,
+  "human_label_metrics": null
+}

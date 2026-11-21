@@ -1,0 +1,410 @@
+{
+  "at_utc": "2026-11-20T14:12:24.925875+00:00",
+  "cases": [
+    {
+      "id": "ISO-01",
+      "category": "isolation",
+      "version": "1.0.0",
+      "expected": "foreign owner denied, own session unchanged",
+      "observed": {
+        "denied": true
+      },
+      "scope": "control-plane ownership",
+      "status": "PASS"
+    },
+    {
+      "id": "ISO-02",
+      "category": "isolation",
+      "version": "1.0.0",
+      "expected": "foreign checkpoint denied",
+      "observed": {
+        "denied": true
+      },
+      "scope": "checkpoint ownership",
+      "status": "PASS"
+    },
+    {
+      "id": "ISO-03",
+      "category": "isolation",
+      "version": "1.0.0",
+      "expected": "tenant B cannot read tenant A marker",
+      "observed": {
+        "protected_runtime_files": true,
+        "host_mount_absent": true,
+        "direct_broker_bypass": true,
+        "environment_canary_absent": true,
+        "tenant_filesystem_isolation": true
+      },
+      "scope": "live separate guest filesystems",
+      "status": "PASS"
+    },
+    {
+      "id": "RES-01",
+      "category": "resource_exhaustion",
+      "version": "1.0.0",
+      "expected": "cpu_limit enforced with benign control",
+      "observed": {
+        "cpu_limit": true,
+        "concurrent_control": true
+      },
+      "scope": "live guest; concurrent control shared by resource probe suite",
+      "status": "PASS"
+    },
+    {
+      "id": "RES-02",
+      "category": "resource_exhaustion",
+      "version": "1.0.0",
+      "expected": "memory_limit enforced with benign control",
+      "observed": {
+        "memory_limit": true,
+        "concurrent_control": true
+      },
+      "scope": "live guest; concurrent control shared by resource probe suite",
+      "status": "PASS"
+    },
+    {
+      "id": "RES-03",
+      "category": "resource_exhaustion",
+      "version": "1.0.0",
+      "expected": "aggregate_disk_limit enforced with benign control",
+      "observed": {
+        "aggregate_disk_limit": true,
+        "concurrent_control": true
+      },
+      "scope": "live guest; concurrent control shared by resource probe suite",
+      "status": "PASS"
+    },
+    {
+      "id": "NET-01",
+      "category": "network_denial",
+      "version": "1.0.0",
+      "expected": "guest cannot reach owned host listener; observer control succeeds",
+      "observed": {
+        "destination": {
+          "address": "127.0.0.1",
+          "port": 51753,
+          "transport": "TCP"
+        },
+        "checks": {
+          "guest_denied": true,
+          "observer_positive_control": true,
+          "destination_observed_no_guest_traffic": true,
+          "benign_passed": true,
+          "overlapped": true
+        },
+        "attack": {
+          "start_monotonic": 225.969217329,
+          "end_monotonic": 232.025392425,
+          "result": {
+            "exit_code": 0,
+            "wall_seconds": 0.124,
+            "stdout": "{\"blocked\": true}\n",
+            "stderr": "",
+            "status": "ok",
+            "backend": "firecracker",
+            "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+            "resource_policy": {
+              "vcpu_count": 1,
+              "mem_size_mib": 512,
+              "cpu_seconds": 15,
+              "address_bytes": 268435456,
+              "processes": 16,
+              "output_bytes": 65536,
+              "wall_seconds": 15,
+              "snapshot_wall_seconds": 120,
+              "writable_disk_bytes": 33554432
+            },
+            "tenant": "network-tenant-a",
+            "session": "NET-01",
+            "total_wall_seconds": 5.002
+          }
+        },
+        "benign": {
+          "start_monotonic": 225.969591655,
+          "end_monotonic": 234.025728762,
+          "result": {
+            "exit_code": 0,
+            "wall_seconds": 2.09,
+            "stdout": "{\"value\": 42}\n",
+            "stderr": "",
+            "status": "ok",
+            "backend": "firecracker",
+            "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+            "resource_policy": {
+              "vcpu_count": 1,
+              "mem_size_mib": 512,
+              "cpu_seconds": 15,
+              "address_bytes": 268435456,
+              "processes": 16,
+              "output_bytes": 65536,
+              "wall_seconds": 15,
+              "snapshot_wall_seconds": 120,
+              "writable_disk_bytes": 33554432
+            },
+            "tenant": "network-tenant-b",
+            "session": "NET-01-control",
+            "total_wall_seconds": 6.962
+          }
+        },
+        "all_pass": true
+      },
+      "scope": "live host-local boundary and destination-side observation",
+      "status": "PASS"
+    },
+    {
+      "id": "NET-02",
+      "category": "network_denial",
+      "version": "1.0.0",
+      "expected": "guest cannot reach owned host listener; observer control succeeds",
+      "observed": {
+        "destination": {
+          "address": "::1",
+          "port": 33839,
+          "transport": "TCP"
+        },
+        "checks": {
+          "guest_denied": true,
+          "observer_positive_control": true,
+          "destination_observed_no_guest_traffic": true,
+          "benign_passed": true,
+          "overlapped": true
+        },
+        "attack": {
+          "start_monotonic": 234.497729001,
+          "end_monotonic": 239.527650452,
+          "result": {
+            "exit_code": 0,
+            "wall_seconds": 0.072,
+            "stdout": "{\"blocked\": true}\n",
+            "stderr": "",
+            "status": "ok",
+            "backend": "firecracker",
+            "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+            "resource_policy": {
+              "vcpu_count": 1,
+              "mem_size_mib": 512,
+              "cpu_seconds": 15,
+              "address_bytes": 268435456,
+              "processes": 16,
+              "output_bytes": 65536,
+              "wall_seconds": 15,
+              "snapshot_wall_seconds": 120,
+              "writable_disk_bytes": 33554432
+            },
+            "tenant": "network-tenant-a",
+            "session": "NET-02",
+            "total_wall_seconds": 4.072
+          }
+        },
+        "benign": {
+          "start_monotonic": 234.498194557,
+          "end_monotonic": 241.557009399,
+          "result": {
+            "exit_code": 0,
+            "wall_seconds": 2.084,
+            "stdout": "{\"value\": 42}\n",
+            "stderr": "",
+            "status": "ok",
+            "backend": "firecracker",
+            "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+            "resource_policy": {
+              "vcpu_count": 1,
+              "mem_size_mib": 512,
+              "cpu_seconds": 15,
+              "address_bytes": 268435456,
+              "processes": 16,
+              "output_bytes": 65536,
+              "wall_seconds": 15,
+              "snapshot_wall_seconds": 120,
+              "writable_disk_bytes": 33554432
+            },
+            "tenant": "network-tenant-b",
+            "session": "NET-02-control",
+            "total_wall_seconds": 6.105
+          }
+        },
+        "all_pass": true
+      },
+      "scope": "live host-local boundary and destination-side observation",
+      "status": "PASS"
+    },
+    {
+      "id": "NET-03",
+      "category": "network_denial",
+      "version": "1.0.0",
+      "expected": "guest cannot reach owned host listener; observer control succeeds",
+      "observed": {
+        "destination": {
+          "address": "127.0.0.1",
+          "port": 56625,
+          "transport": "UDP"
+        },
+        "checks": {
+          "guest_denied": true,
+          "observer_positive_control": true,
+          "destination_observed_no_guest_traffic": true,
+          "benign_passed": true,
+          "overlapped": true
+        },
+        "attack": {
+          "start_monotonic": 242.013426847,
+          "end_monotonic": 246.9147423,
+          "result": {
+            "exit_code": 0,
+            "wall_seconds": 0.07,
+            "stdout": "{\"blocked\": true}\n",
+            "stderr": "",
+            "status": "ok",
+            "backend": "firecracker",
+            "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+            "resource_policy": {
+              "vcpu_count": 1,
+              "mem_size_mib": 512,
+              "cpu_seconds": 15,
+              "address_bytes": 268435456,
+              "processes": 16,
+              "output_bytes": 65536,
+              "wall_seconds": 15,
+              "snapshot_wall_seconds": 120,
+              "writable_disk_bytes": 33554432
+            },
+            "tenant": "network-tenant-a",
+            "session": "NET-03",
+            "total_wall_seconds": 3.955
+          }
+        },
+        "benign": {
+          "start_monotonic": 242.013844974,
+          "end_monotonic": 248.881970915,
+          "result": {
+            "exit_code": 0,
+            "wall_seconds": 2.085,
+            "stdout": "{\"value\": 42}\n",
+            "stderr": "",
+            "status": "ok",
+            "backend": "firecracker",
+            "runtime_image_digest": "b5f566c1278009dda02830390e3a6c3b52f1bb353ed94c395f489a652b942922",
+            "resource_policy": {
+              "vcpu_count": 1,
+              "mem_size_mib": 512,
+              "cpu_seconds": 15,
+              "address_bytes": 268435456,
+              "processes": 16,
+              "output_bytes": 65536,
+              "wall_seconds": 15,
+              "snapshot_wall_seconds": 120,
+              "writable_disk_bytes": 33554432
+            },
+            "tenant": "network-tenant-b",
+            "session": "NET-03-control",
+            "total_wall_seconds": 5.908
+          }
+        },
+        "all_pass": true
+      },
+      "scope": "live host-local boundary and destination-side observation",
+      "status": "PASS"
+    },
+    {
+      "id": "SEC-01",
+      "category": "secret_protection",
+      "version": "1.0.0",
+      "expected": "forged capability denied",
+      "observed": {
+        "denied": true
+      },
+      "scope": "broker signature",
+      "status": "PASS"
+    },
+    {
+      "id": "SEC-02",
+      "category": "secret_protection",
+      "version": "1.0.0",
+      "expected": "revoked capability denied and canary absent",
+      "observed": {
+        "denied": true,
+        "canary_absent": true
+      },
+      "scope": "broker revocation and synthetic secret boundary",
+      "status": "PASS"
+    },
+    {
+      "id": "SEC-03",
+      "category": "secret_protection",
+      "version": "1.0.0",
+      "expected": "guest cannot read protected runtime files or secret environment",
+      "observed": {
+        "protected_runtime_files": true,
+        "host_mount_absent": true,
+        "direct_broker_bypass": true,
+        "environment_canary_absent": true,
+        "tenant_filesystem_isolation": true
+      },
+      "scope": "live guest",
+      "status": "PASS"
+    },
+    {
+      "id": "GRD-01",
+      "category": "grader_injection",
+      "version": "1.0.0",
+      "expected": "mandatory failure cannot become PASS",
+      "observed": {
+        "status": "FAIL_INVARIANT",
+        "score": null,
+        "reason": "mandatory invariant failed"
+      },
+      "scope": "deterministic grading gate",
+      "status": "PASS"
+    },
+    {
+      "id": "GRD-02",
+      "category": "grader_injection",
+      "version": "1.0.0",
+      "expected": "unstructured score-changing answer requires review",
+      "observed": {
+        "status": "REVIEW",
+        "score": null,
+        "reason": "invalid judgment shape"
+      },
+      "scope": "rubric validation",
+      "status": "PASS"
+    },
+    {
+      "id": "GRD-03",
+      "category": "grader_injection",
+      "version": "1.0.0",
+      "expected": "test-conflicting model answers require review",
+      "observed": {
+        "status": "REVIEW",
+        "score": 100.0,
+        "D": 1,
+        "S": 1.0,
+        "normalization": {
+          "deterministic": "weighted passed weight / total weight",
+          "semantic": "weighted applicable level / (4 * applicable weight)"
+        },
+        "review_reasons": [
+          "judge conflicts with deterministic evidence"
+        ]
+      },
+      "scope": "conflict escalation; not LLM robustness proof",
+      "status": "PASS"
+    }
+  ],
+  "all_pass": true,
+  "scope": "15 defined cases; contract gates and live guest checks; not universal security or model injection resistance",
+  "evidence": [
+    {
+      "path": "evidence\\live-resource-probe-2026-11-20.json",
+      "sha256": "f3aaec9bd0000367af7c37dfa0dbcdeb98272d256c03bf384a292d0d2e1ea092"
+    },
+    {
+      "path": "evidence\\live-security-probe-2026-11-20.json",
+      "sha256": "5599676d7c7886ae08b62ffce75f4ef22f96d2b50ee5e6149c0db95e6565ea77"
+    },
+    {
+      "path": "evidence\\live-network-boundary-2026-11-20.json",
+      "sha256": "147e75538e3c0a014c650c0d9d8e57066ac82d3f3785f00549588b8fc5d0b485"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 import unittest
 
-from scripts.evaluate_labels import evaluate
+from scripts.evaluate_labels import evaluate, weighted_kappa
 
 
 class EvaluationMetricsTests(unittest.TestCase):
@@ -105,6 +105,26 @@ class EvaluationMetricsTests(unittest.TestCase):
         row['run_metrics'] = [{'cost_usd': -1}]
         with self.assertRaises(ValueError):
             evaluate({'submissions': [row]})
+
+    def test_weighted_ordinal_agreement_and_duplicate_ids(self):
+        rows = [
+            {'id': 'a', 'family': 'f1', 'human_ratings': [True, True],
+             'adjudicated_correct': True, 'automated_status': 'REVIEW',
+             'human_criteria_ratings': [{'clarity': 0}, {'clarity': 0}],
+             'adjudicated_criteria': {'clarity': 0}, 'automated_criteria': {'clarity': 0}},
+            {'id': 'b', 'family': 'f2', 'human_ratings': [True, True],
+             'adjudicated_correct': True, 'automated_status': 'REVIEW',
+             'human_criteria_ratings': [{'clarity': 4}, {'clarity': 4}],
+             'adjudicated_criteria': {'clarity': 4}, 'automated_criteria': {'clarity': 2}},
+        ]
+        report = evaluate({'submissions': rows})
+        self.assertEqual(report['weighted_agreement_human_human']['clarity'],
+                         {'pairs': 2, 'kappa': 1.0})
+        self.assertEqual(report['weighted_agreement_model_human']['clarity']['pairs'], 2)
+        with self.assertRaisesRegex(ValueError, 'duplicate'):
+            evaluate({'submissions': rows + rows[:1]})
+        self.assertEqual(weighted_kappa([(0, 4), (4, 0)]),
+                         {'pairs': 2, 'kappa': -1.0})
 
 
 if __name__ == '__main__':

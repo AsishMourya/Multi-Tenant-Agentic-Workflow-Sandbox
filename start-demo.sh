@@ -8,6 +8,16 @@ fi
 
 cd "$(dirname "$(readlink -f "$0")")"
 
+offline=false
+with_judge=false
+for option in "$@"; do
+  case "$option" in
+    --offline) offline=true ;;
+    --with-judge) with_judge=true ;;
+    *) echo "Unknown option: $option (use --offline or --with-judge)" >&2; exit 2 ;;
+  esac
+done
+
 if ! command -v node >/dev/null || ! command -v npm >/dev/null; then
   echo "Node.js and npm are required in WSL to build the dashboard." >&2
   exit 1
@@ -20,14 +30,14 @@ fi
 if [[ ! -x .venv-linux/bin/python ]]; then
   python3 -m venv .venv-linux
 fi
-if [[ "${1:-}" == "--offline" ]]; then
+if $offline; then
   .venv-linux/bin/python -m pip check
 else
   .venv-linux/bin/python -m pip install --disable-pip-version-check -r requirements-lock.txt
 fi
 
 if [[ ! -x web/node_modules/.bin/vite || ! -x web/node_modules/esbuild-linux-64/bin/esbuild ]]; then
-  if [[ "${1:-}" == "--offline" ]]; then
+  if $offline; then
     echo "Offline dependencies are missing. Run bash start-demo.sh once while online." >&2
     exit 1
   fi
@@ -52,7 +62,15 @@ sudo -H env PYTHONNOUSERSITE=1 .venv-linux/bin/python scripts/feasibility.py \
 echo
 echo "Starting the local API. Keep this terminal open; press Ctrl+C to stop."
 judge_args=()
+if $with_judge; then
+  if ! command -v ollama >/dev/null || ! ollama show "${DAT_JUDGE_MODEL:-qwen2.5:0.5b}" >/dev/null 2>&1; then
+    echo "Local Ollama judge is unavailable. Start Ollama and install ${DAT_JUDGE_MODEL:-qwen2.5:0.5b}." >&2
+    exit 1
+  fi
+  DAT_JUDGE_MODEL="${DAT_JUDGE_MODEL:-qwen2.5:0.5b}"
+fi
 if [[ -n "${DAT_JUDGE_MODEL:-}" ]]; then
+  echo "Local judge enabled: $DAT_JUDGE_MODEL (uncalibrated scores remain pending human review)."
   judge_args=(--judge-model "$DAT_JUDGE_MODEL")
 fi
 exec sudo -H env PYTHONNOUSERSITE=1 .venv-linux/bin/python scripts/serve.py \

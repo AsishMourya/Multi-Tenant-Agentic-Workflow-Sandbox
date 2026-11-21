@@ -1,0 +1,77 @@
+{
+  "scope": "engineering execution measurements; no human-label accuracy claim",
+  "at_utc": "2026-11-20T19:38:56.592325+00:00",
+  "bank_sha256": "a843aec494157477b311ab0eda9111487fc41cecea14d1b6d6fa3a5667a5b488",
+  "frozen_bank_size": 60,
+  "observed_runs": 8,
+  "unique_submissions": 8,
+  "status_counts": {
+    "REVIEW": 8
+  },
+  "by_exercise": {
+    "inventory": {
+      "REVIEW": 2
+    },
+    "inventory-brief": {
+      "REVIEW": 2
+    },
+    "order-explainer": {
+      "REVIEW": 2
+    },
+    "stock-reorder": {
+      "REVIEW": 2
+    }
+  },
+  "by_partition": {
+    "calibration": {
+      "REVIEW": 2
+    },
+    "held_out": {
+      "REVIEW": 6
+    }
+  },
+  "by_construction": {
+    "adversarial": {
+      "REVIEW": 8
+    }
+  },
+  "matched_score_shifts_vs_starter": {
+    "partly-correct": {
+      "matched_pairs": 0,
+      "mean_score_delta": null
+    },
+    "ambiguous": {
+      "matched_pairs": 0,
+      "mean_score_delta": null
+    },
+    "adversarial": {
+      "matched_pairs": 0,
+      "mean_score_delta": null
+    }
+  },
+  "infrastructure_errors": 0,
+  "end_to_end_latency": {
+    "n": 8,
+    "median_ms": 17685.78,
+    "p95_ms": 24637.95
+  },
+  "judge_calls": 0,
+  "judge_latency": {
+    "n": 0,
+    "median_ms": null,
+    "p95_ms": null
+  },
+  "judge_token_usage": {
+    "measured_calls": 0,
+    "prompt_tokens": null,
+    "completion_tokens": null
+  },
+  "judge_peak_resident_bytes": null,
+  "judge_error_counts": {
+    "explicit grading instruction in untrusted evidence; human review required": 8
+  },
+  "provisional_score_count": 0,
+  "snapshot_runs": 8,
+  "snapshot_restored": 8,
+  "human_label_metrics": null
+}

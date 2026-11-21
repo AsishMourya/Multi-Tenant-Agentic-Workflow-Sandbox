@@ -36,6 +36,25 @@ class JudgeInvalid(JudgeUnavailable):
     """The model answered, but its response cannot be used as a grade."""
 
 
+class JudgeUnsafeEvidence(RuntimeError):
+    """Untrusted output contains an explicit attempt to direct the grader."""
+
+
+GRADING_INSTRUCTION = re.compile(
+    r'\b(?:ignore|override|disregard|bypass)\b.{0,100}\b(?:rubric|grading|instructions|judge)\b'
+    r'|\b(?:set|assign|give|return)\b.{0,100}\b(?:score|grade|level)\b', re.IGNORECASE | re.DOTALL)
+
+
+def has_grading_instruction(value):
+    if isinstance(value, str):
+        return bool(GRADING_INSTRUCTION.search(value))
+    if isinstance(value, dict):
+        return any(has_grading_instruction(item) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(has_grading_instruction(item) for item in value)
+    return False
+
+
 class OllamaJudge:
     def __init__(self, model, *, executable='ollama', timeout_seconds=90, runner=None):
         if not isinstance(model, str) or not re.fullmatch(r'[A-Za-z0-9._:/-]{1,128}', model):
@@ -51,7 +70,8 @@ class OllamaJudge:
                      'required': ['level', 'status', 'evidence', 'reason'],
                      'properties': {'level': {'type': ['integer', 'null'], 'enum': [0, 1, 2, 3, 4, None]},
                                     'status': {'type': 'string', 'enum': ['APPLICABLE', 'NOT_APPLICABLE', 'ABSTAIN']},
-                                    'evidence': {'type': 'string'}, 'reason': {'type': 'string'}}}
+                                    'evidence': {'type': 'string', 'minLength': 1, 'maxLength': 2000},
+                                    'reason': {'type': 'string', 'minLength': 1, 'maxLength': 2000}}}
         applicable = copy.deepcopy(criterion)
         applicable['properties']['status'] = {'const': 'APPLICABLE'}
         applicable['properties']['level'] = {'type': 'integer', 'enum': [0, 1, 2, 3, 4]}
@@ -111,18 +131,27 @@ class OllamaJudge:
                 with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
                     payload = json.loads(response.read())
                 raw, stderr = payload['response'], ''
+                model_metadata.update({
+                    'prompt_tokens': payload.get('prompt_eval_count'),
+                    'completion_tokens': payload.get('eval_count'),
+                    'model_total_ms': round(payload['total_duration'] / 1_000_000, 2)
+                    if type(payload.get('total_duration')) in (int, float) else None,
+                    'model_generation_ms': round(payload['eval_duration'] / 1_000_000, 2)
+                    if type(payload.get('eval_duration')) in (int, float) else None,
+                })
             except (OSError, ValueError, KeyError, urllib.error.URLError) as exc:
                 raise JudgeUnavailable('local judge unavailable') from exc
             try:
                 with urllib.request.urlopen('http://127.0.0.1:11434/api/ps', timeout=5) as response:
                     models = json.loads(response.read()).get('models', [])
                 loaded = next((item for item in models if item.get('name') == self.model), {})
-                model_metadata = {'model_digest': loaded.get('digest', 'unreported'),
-                                  'resident_bytes': loaded.get('size'),
-                                  'quantization': loaded.get('details', {}).get('quantization_level')}
+                model_metadata.update({'model_digest': loaded.get('digest', 'unreported'),
+                                       'resident_bytes': loaded.get('size'),
+                                       'quantization': loaded.get('details', {}).get('quantization_level')})
             except (OSError, ValueError):
                 pass
-        metadata = {'model': self.model, 'runtime': 'ollama', **model_metadata,
+        metadata = {'model': self.model, 'runtime': 'ollama',
+                    'calibration_status': 'unvalidated', **model_metadata,
                     'latency_ms': round((time.monotonic() - started) * 1000, 2),
                     'raw_response': raw, 'prompt_version': 'w1-rubric-2', 'stderr': stderr[-1000:]}
         try:

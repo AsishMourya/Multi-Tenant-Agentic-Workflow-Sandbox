@@ -1,0 +1,312 @@
+{
+  "scope": "Live orders-cents Firecracker API bursts, two alternating tenants; offered request concurrency, not proof of simultaneous VM count.",
+  "repeats": 3,
+  "summary": {
+    "1": {
+      "requests": 3,
+      "successful": 3,
+      "queued": 0,
+      "median_latency_seconds": 30.09,
+      "p95_latency_seconds": 33.96,
+      "throughput_requests_per_second": 0.032
+    },
+    "2": {
+      "requests": 6,
+      "successful": 6,
+      "queued": 0,
+      "median_latency_seconds": 30.405,
+      "p95_latency_seconds": 31.292,
+      "throughput_requests_per_second": 0.066
+    },
+    "4": {
+      "requests": 12,
+      "successful": 12,
+      "queued": 0,
+      "median_latency_seconds": 35.535,
+      "p95_latency_seconds": 37.396,
+      "throughput_requests_per_second": 0.111
+    }
+  },
+  "trials": [
+    {
+      "concurrency": 1,
+      "repeat": 1,
+      "wall_seconds": 34.388,
+      "scope": "1 simultaneous API requests across two tenants; server worker capacity remains configured separately",
+      "all_pass": true,
+      "queued_count": 0,
+      "results": [
+        {
+          "index": 0,
+          "tenant": "tenant-a",
+          "session": "tenant-a-73954d6034e6",
+          "queued": false,
+          "latency_seconds": 34.39,
+          "pass": true,
+          "grade": "REVIEW"
+        }
+      ]
+    },
+    {
+      "concurrency": 1,
+      "repeat": 2,
+      "wall_seconds": 30.095,
+      "scope": "1 simultaneous API requests across two tenants; server worker capacity remains configured separately",
+      "all_pass": true,
+      "queued_count": 0,
+      "results": [
+        {
+          "index": 0,
+          "tenant": "tenant-a",
+          "session": "tenant-a-6e6754cfdee8",
+          "queued": false,
+          "latency_seconds": 30.09,
+          "pass": true,
+          "grade": "REVIEW"
+        }
+      ]
+    },
+    {
+      "concurrency": 1,
+      "repeat": 3,
+      "wall_seconds": 29.49,
+      "scope": "1 simultaneous API requests across two tenants; server worker capacity remains configured separately",
+      "all_pass": true,
+      "queued_count": 0,
+      "results": [
+        {
+          "index": 0,
+          "tenant": "tenant-a",
+          "session": "tenant-a-73443538ef0c",
+          "queued": false,
+          "latency_seconds": 29.49,
+          "pass": true,
+          "grade": "REVIEW"
+        }
+      ]
+    },
+    {
+      "concurrency": 2,
+      "repeat": 1,
+      "wall_seconds": 30.444,
+      "scope": "2 simultaneous API requests across two tenants; server worker capacity remains configured separately",
+      "all_pass": true,
+      "queued_count": 0,
+      "results": [
+        {
+          "index": 0,
+          "tenant": "tenant-a",
+          "session": "tenant-a-9be234ed1400",
+          "queued": false,
+          "latency_seconds": 30.44,
+          "pass": true,
+          "grade": "REVIEW"
+        },
+        {
+          "index": 1,
+          "tenant": "tenant-b",
+          "session": "tenant-b-58bbf801dcf3",
+          "queued": false,
+          "latency_seconds": 30.37,
+          "pass": true,
+          "grade": "REVIEW"
+        }
+      ]
+    },
+    {
+      "concurrency": 2,
+      "repeat": 2,
+      "wall_seconds": 29.782,
+      "scope": "2 simultaneous API requests across two tenants; server worker capacity remains configured separately",
+      "all_pass": true,
+      "queued_count": 0,
+      "results": [
+        {
+          "index": 0,
+          "tenant": "tenant-a",
+          "session": "tenant-a-7b46fea4e5be",
+          "queued": false,
+          "latency_seconds": 29.55,
+          "pass": true,
+          "grade": "REVIEW"
+        },
+        {
+          "index": 1,
+          "tenant": "tenant-b",
+          "session": "tenant-b-6294b4ee9854",
+          "queued": false,
+          "latency_seconds": 29.78,
+          "pass": true,
+          "grade": "REVIEW"
+        }
+      ]
+    },
+    {
+      "concurrency": 2,
+      "repeat": 3,
+      "wall_seconds": 31.315,
+      "scope": "2 simultaneous API requests across two tenants; server worker capacity remains configured separately",
+      "all_pass": true,
+      "queued_count": 0,
+      "results": [
+        {
+          "index": 0,
+          "tenant": "tenant-a",
+          "session": "tenant-a-2d5a8190d8ad",
+          "queued": false,
+          "latency_seconds": 31.31,
+          "pass": true,
+          "grade": "REVIEW"
+        },
+        {
+          "index": 1,
+          "tenant": "tenant-b",
+          "session": "tenant-b-40a2a6ec1e6a",
+          "queued": false,
+          "latency_seconds": 31.24,
+          "pass": true,
+          "grade": "REVIEW"
+        }
+      ]
+    },
+    {
+      "concurrency": 4,
+      "repeat": 1,
+      "wall_seconds": 35.645,
+      "scope": "4 simultaneous API requests across two tenants; server worker capacity remains configured separately",
+      "all_pass": true,
+      "queued_count": 0,
+      "results": [
+        {
+          "index": 0,
+          "tenant": "tenant-a",
+          "session": "tenant-a-7acd56159dc8",
+          "queued": false,
+          "latency_seconds": 35.48,
+          "pass": true,
+          "grade": "REVIEW"
+        },
+        {
+          "index": 1,
+          "tenant": "tenant-b",
+          "session": "tenant-b-018efabd7fbd",
+          "queued": false,
+          "latency_seconds": 35.64,
+          "pass": true,
+          "grade": "REVIEW"
+        },
+        {
+          "index": 2,
+          "tenant": "tenant-a",
+          "session": "tenant-a-05b4f15b171f",
+          "queued": false,
+          "latency_seconds": 35.57,
+          "pass": true,
+          "grade": "REVIEW"
+        },
+        {
+          "index": 3,
+          "tenant": "tenant-b",
+          "session": "tenant-b-e3fef16de4f7",
+          "queued": false,
+          "latency_seconds": 35.5,
+          "pass": true,
+          "grade": "REVIEW"
+        }
+      ]
+    },
+    {
+      "concurrency": 4,
+      "repeat": 2,
+      "wall_seconds": 35.232,
+      "scope": "4 simultaneous API requests across two tenants; server worker capacity remains configured separately",
+      "all_pass": true,
+      "queued_count": 0,
+      "results": [
+        {
+          "index": 0,
+          "tenant": "tenant-a",
+          "session": "tenant-a-ca4ff074390a",
+          "queued": false,
+          "latency_seconds": 35.15,
+          "pass": true,
+          "grade": "REVIEW"
+        },
+        {
+          "index": 1,
+          "tenant": "tenant-b",
+          "session": "tenant-b-83fb411c1f4c",
+          "queued": false,
+          "latency_seconds": 35.08,
+          "pass": true,
+          "grade": "REVIEW"
+        },
+        {
+          "index": 2,
+          "tenant": "tenant-a",
+          "session": "tenant-a-8da1f00202d0",
+          "queued": false,
+          "latency_seconds": 35.23,
+          "pass": true,
+          "grade": "REVIEW"
+        },
+        {
+          "index": 3,
+          "tenant": "tenant-b",
+          "session": "tenant-b-9307390f43d0",
+          "queued": false,
+          "latency_seconds": 35.04,
+          "pass": true,
+          "grade": "REVIEW"
+        }
+      ]
+    },
+    {
+      "concurrency": 4,
+      "repeat": 3,
+      "wall_seconds": 37.438,
+      "scope": "4 simultaneous API requests across two tenants; server worker capacity remains configured separately",
+      "all_pass": true,
+      "queued_count": 0,
+      "results": [
+        {
+          "index": 0,
+          "tenant": "tenant-a",
+          "session": "tenant-a-aeb7bfcf3ae1",
+          "queued": false,
+          "latency_seconds": 37.36,
+          "pass": true,
+          "grade": "REVIEW"
+        },
+        {
+          "index": 1,
+          "tenant": "tenant-b",
+          "session": "tenant-b-55ccc3d4ab7d",
+          "queued": false,
+          "latency_seconds": 37.22,
+          "pass": true,
+          "grade": "REVIEW"
+        },
+        {
+          "index": 2,
+          "tenant": "tenant-a",
+          "session": "tenant-a-3474aeb250df",
+          "queued": false,
+          "latency_seconds": 37.29,
+          "pass": true,
+          "grade": "REVIEW"
+        },
+        {
+          "index": 3,
+          "tenant": "tenant-b",
+          "session": "tenant-b-2d82304ea799",
+          "queued": false,
+          "latency_seconds": 37.44,
+          "pass": true,
+          "grade": "REVIEW"
+        }
+      ]
+    }
+  ],
+  "all_pass": true
+}

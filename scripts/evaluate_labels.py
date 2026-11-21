@@ -4,6 +4,7 @@ import json
 import math
 import random
 from pathlib import Path
+from collections import defaultdict
 
 
 AUTOMATIC_STATUSES = {'PASS', 'FAIL', 'FAIL_INVARIANT', 'POLICY_FAILURE'}
@@ -73,6 +74,32 @@ def mean_metric(values, precision=4):
             'mean': None if not values else round(sum(values) / len(values), precision)}
 
 
+def weighted_kappa(pairs):
+    """Quadratic-weighted agreement for ordinal rubric levels 0-4."""
+    if not pairs:
+        return {'pairs': 0, 'kappa': None}
+    left = [a for a, _ in pairs]
+    right = [b for _, b in pairs]
+    observed = sum((a - b) ** 2 for a, b in pairs) / len(pairs)
+    expected = sum((a - b) ** 2 for a in left for b in right) / len(pairs) ** 2
+    return {'pairs': len(pairs), 'kappa': 1.0 if expected == 0 and observed == 0
+            else None if expected == 0 else round(1 - observed / expected, 4)}
+
+
+def _human_criteria(row):
+    ratings = row.get('human_criteria_ratings')
+    if ratings is None:
+        return None
+    if (not isinstance(ratings, list) or len(ratings) != 2 or
+            any(not isinstance(item, dict) for item in ratings) or
+            not ratings[0] or set(ratings[0]) != set(ratings[1])):
+        raise ValueError('two matching human criterion rating sets required')
+    for item in ratings:
+        if any(type(level) is not int or not 0 <= level <= 4 for level in item.values()):
+            raise ValueError('human criterion levels must be integers from 0 to 4')
+    return ratings
+
+
 def _validate_criteria(row):
     adjudicated = row.get('adjudicated_criteria')
     automated = row.get('automated_criteria')
@@ -128,12 +155,18 @@ def evaluate(data):
     measured_submission_metrics = {name: [] for name in RUN_METRICS}
     measured_run_counts = {name: 0 for name in RUN_METRICS}
     disagreements = 0
+    human_ordinal_pairs = defaultdict(list)
+    model_ordinal_pairs = defaultdict(list)
+    ids = set()
     false_accepts = false_rejects = incorrect = correct = 0
     families = set()
     for row in rows:
         if not isinstance(row, dict):
             raise ValueError('invalid labelled submission')
         ratings = row.get('human_ratings')
+        if row.get('id') in ids:
+            raise ValueError('duplicate labelled submission ID')
+        ids.add(row.get('id'))
         status = row.get('automated_status')
         if (not isinstance(row.get('id'), str) or not isinstance(row.get('family'), str) or
                 not isinstance(ratings, list) or len(ratings) != 2 or
@@ -142,6 +175,14 @@ def evaluate(data):
                 not isinstance(status, str) or status not in VALID_STATUSES):
             raise ValueError('invalid labelled submission')
         errors = _validate_criteria(row)
+        criterion_ratings = _human_criteria(row)
+        if criterion_ratings is not None:
+            for name in criterion_ratings[0]:
+                human_ordinal_pairs[name].append((criterion_ratings[0][name],
+                                                  criterion_ratings[1][name]))
+        if errors is not None and status != 'RETRY_ERROR':
+            for name, human_level in row['adjudicated_criteria'].items():
+                model_ordinal_pairs[name].append((human_level, row['automated_criteria'][name]))
         if errors is not None and status != 'RETRY_ERROR':
             semantic_errors.extend(errors)
             semantic_submissions += 1
@@ -186,6 +227,10 @@ def evaluate(data):
             'mae': None if not semantic_errors else round(
                 sum(semantic_errors) / len(semantic_errors), 4),
         },
+        'weighted_agreement_human_human': {
+            name: weighted_kappa(pairs) for name, pairs in sorted(human_ordinal_pairs.items())},
+        'weighted_agreement_model_human': {
+            name: weighted_kappa(pairs) for name, pairs in sorted(model_ordinal_pairs.items())},
         'judge_calls_per_submission': mean_metric(measured_submission_metrics['judge_calls']),
         'end_to_end_latency_ms': mean_metric(measured_submission_metrics['end_to_end_latency_ms'], 2),
         'inference_memory_mb': mean_metric(measured_submission_metrics['inference_memory_mb'], 2),
@@ -231,7 +276,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--labels', required=True)
     parser.add_argument('--output', required=True)
+    parser.add_argument('--partition', choices=['calibration', 'held_out', 'all'], default='held_out')
     args = parser.parse_args()
-    report = evaluate(json.loads(Path(args.labels).read_text(encoding='utf-8')))
+    data = json.loads(Path(args.labels).read_text(encoding='utf-8'))
+    if args.partition != 'all':
+        data = dict(data)
+        if any(row.get('split') not in {'calibration', 'held_out'} for row in data['submissions']):
+            parser.error('label rows need frozen split assignments for partitioned evaluation')
+        data['submissions'] = [row for row in data['submissions'] if row['split'] == args.partition]
+    report = evaluate(data)
+    report['partition'] = args.partition
     Path(args.output).write_text(json.dumps(report, indent=2), encoding='utf-8')
     print(json.dumps(report, indent=2))

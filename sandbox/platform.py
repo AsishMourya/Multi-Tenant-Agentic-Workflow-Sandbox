@@ -18,7 +18,7 @@ from sandbox.exercise_registry import EXERCISES, PYTHON_EXERCISES, WORKFLOW_EXER
 from sandbox.firecracker_backend import BackendUnavailable
 from sandbox.grading import decision
 from sandbox.lifecycle import Lifecycle
-from sandbox.local_judge import JudgeInvalid, JudgeUnavailable
+from sandbox.local_judge import JudgeInvalid, JudgeUnavailable, JudgeUnsafeEvidence, has_grading_instruction
 from sandbox.state import StateStore
 from sandbox.reviews import record_review
 
@@ -205,6 +205,8 @@ class Platform:
         """Obtain server-owned semantic judgments after deterministic evidence exists."""
         if not callable(judges):
             return list(judges)
+        if has_grading_instruction(observed.get('output')) or has_grading_instruction(observed.get('tool_effects')):
+            raise JudgeUnsafeEvidence('explicit grading instruction in untrusted evidence; human review required')
         resolved = Judgments()
         for _ in range(2):
             try:
@@ -409,9 +411,16 @@ class Platform:
                           'execution_status': execution['status']})
         judge_error = None
         judge_invalid = False
+        judge_unsafe = False
         try:
             judgments = self._resolve_judgments(judges if invariant_ok else (), {'exercise': record['exercise'],
                 'payload': payload, 'output': output, 'deterministic_results': trace})
+        except JudgeUnsafeEvidence as exc:
+            judgments = []
+            judge_error = str(exc)
+            judge_invalid = judge_unsafe = True
+            trace.append({'check': 'grader injection guard', 'passed': False,
+                          'error': judge_error})
         except JudgeInvalid as exc:
             judgments = getattr(exc, 'partial_judgments', [])
             judge_error = str(exc)
@@ -432,6 +441,8 @@ class Platform:
         self.grades.append(grade)
         if judge_error is not None:
             grade['metrics']['judge_error'] = judge_error
+        if judge_unsafe:
+            grade['reason'] = judge_error
         grade['metrics']['full_vm_snapshot'] = bool(execution.get('snapshot'))
         self._save_result(session, output, grade, trace, execution)
         current = self.lifecycle.get(tenant, session)
@@ -508,10 +519,17 @@ class Platform:
         trace = agent_grade['results']
         judge_error = None
         judge_invalid = False
+        judge_unsafe = False
         try:
             judgments = self._resolve_judgments(judges if agent_grade['invariants_ok'] else (), {'exercise': exercise,
                 'payload': payload, 'output': output, 'deterministic_results': trace,
                 'tool_effects': effects})
+        except JudgeUnsafeEvidence as exc:
+            judgments = []
+            judge_error = str(exc)
+            judge_invalid = judge_unsafe = True
+            trace.append({'check': 'grader injection guard', 'passed': False,
+                          'error': judge_error})
         except JudgeInvalid as exc:
             judgments = getattr(exc, 'partial_judgments', [])
             judge_error = str(exc)
@@ -532,6 +550,8 @@ class Platform:
         self.grades.append(grade)
         if judge_error is not None:
             grade['metrics']['judge_error'] = judge_error
+        if judge_unsafe:
+            grade['reason'] = judge_error
         grade['metrics']['full_vm_snapshot'] = bool(execution.get('snapshot'))
         self._save_result(session, output, grade, trace, execution)
         current = self.lifecycle.get(tenant, session)
@@ -617,6 +637,14 @@ class Platform:
         raw = json.dumps({'payload': payload, 'output': output, 'source': source},
                          sort_keys=True).encode()
         runs = getattr(judges, 'metadata', [])
+        # Two parseable model answers are not evidence of agreement with human
+        # ratings. Preserve the provisional score, but require a human decision.
+        if result['status'] in {'PASS', 'FAIL', 'REVIEW'} and any(
+                run.get('runtime') == 'ollama' and
+                run.get('calibration_status') != 'validated' for run in runs):
+            result['status'] = 'REVIEW'
+            result['review_reasons'] = [*result.get('review_reasons', []),
+                                        'local judge has no validated human-label calibration']
         model_ids = sorted({run['model'] for run in runs if run.get('model')})
         model_digests = sorted({run['model_digest'] for run in runs if run.get('model_digest')})
         prompt_versions = sorted({run['prompt_version'] for run in runs if run.get('prompt_version')})

@@ -9,6 +9,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from sandbox.reviews import record_review
 
 
+def pending_summary(records):
+    return [{'grade_id': record['grade']['grade_id'],
+             'session': record['grade']['session'],
+             'exercise': record['grade']['exercise_version'].split(':')[0],
+             'provisional_score': record['grade'].get('score'),
+             'model': record['grade'].get('model_id'),
+             'reason': record['grade'].get('reason')}
+            for record in records]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--state-root', default='work/demo-state-v2')
@@ -16,6 +26,8 @@ def main():
     parser.add_argument('--reviewer')
     parser.add_argument('--decision', choices=['PASS', 'FAIL', 'ESCALATE'])
     parser.add_argument('--reason')
+    parser.add_argument('--summary', action='store_true',
+                        help='list pending reviews without raw submissions or model responses')
     args = parser.parse_args()
     database = Path(args.state_root) / 'platform.sqlite3'
     if not database.is_file():
@@ -36,6 +48,8 @@ def main():
                     result.append(record)
         finally:
             db.close()
+        if args.summary:
+            result = pending_summary(result)
     print(json.dumps(result, indent=2))
 
 

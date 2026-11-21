@@ -7,7 +7,24 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 work/
-evidence/
+tmp/
+evidence/*
+!evidence/live-all-exercises-2026-11-20.json
+!evidence/live-burst-ten-2026-11-09.json
+!evidence/live-resource-probe-2026-11-20.json
+!evidence/live-security-probe-2026-11-20.json
+!evidence/live-network-boundary-2026-11-20.json
+!evidence/security-corpus-2026-11-20.json
+!evidence/regression-runs-2026-11-20.jsonl
+!evidence/regression-summary-2026-11-21.json
+!evidence/regression-runs-judge-2026-11-21.jsonl
+!evidence/regression-judge-summary-2026-11-21.json
+!evidence/validation-runs-2026-11-21.jsonl
+!evidence/validation-summary-2026-11-21.json
+!evidence/validation-injection-guard-retry-2026-11-21.jsonl
+!evidence/injection-guard-summary-2026-11-21.json
+!evidence/benchmark-concurrency-2026-11-21.json
+!evidence/final-tests-2026-11-21.json
 assets/
 *.sqlite*
 config/tenants.local.json
@@ -22,6 +39,4 @@ config/tenants.demo.json
 *.fdb_latexmk
 *.synctex.gz
 SRS.md
-DAT_Group44.pdf
-PROJECT_STATUS.md
-RUNBOOK.md
+DAT CS5903 - Final Project Submission and Handover Guide.docx

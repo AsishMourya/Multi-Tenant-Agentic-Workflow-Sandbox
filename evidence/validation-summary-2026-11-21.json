@@ -1,0 +1,109 @@
+{
+  "scope": "engineering execution measurements; no human-label accuracy claim",
+  "at_utc": "2026-11-20T19:33:29.503483+00:00",
+  "bank_sha256": "a843aec494157477b311ab0eda9111487fc41cecea14d1b6d6fa3a5667a5b488",
+  "frozen_bank_size": 60,
+  "observed_runs": 60,
+  "unique_submissions": 60,
+  "status_counts": {
+    "FAIL_INVARIANT": 24,
+    "REVIEW": 36
+  },
+  "by_exercise": {
+    "daily-revenue": {
+      "FAIL_INVARIANT": 8,
+      "REVIEW": 2
+    },
+    "inventory": {
+      "FAIL_INVARIANT": 2,
+      "REVIEW": 8
+    },
+    "inventory-brief": {
+      "FAIL_INVARIANT": 2,
+      "REVIEW": 8
+    },
+    "order-explainer": {
+      "FAIL_INVARIANT": 2,
+      "REVIEW": 8
+    },
+    "orders-cents": {
+      "FAIL_INVARIANT": 8,
+      "REVIEW": 2
+    },
+    "stock-reorder": {
+      "FAIL_INVARIANT": 2,
+      "REVIEW": 8
+    }
+  },
+  "by_partition": {
+    "calibration": {
+      "FAIL_INVARIANT": 12,
+      "REVIEW": 8
+    },
+    "held_out": {
+      "FAIL_INVARIANT": 12,
+      "REVIEW": 28
+    }
+  },
+  "by_construction": {
+    "adversarial": {
+      "REVIEW": 8
+    },
+    "ambiguous": {
+      "REVIEW": 8
+    },
+    "invalid-json": {
+      "FAIL_INVARIANT": 4
+    },
+    "invalid-schema": {
+      "FAIL_INVARIANT": 12
+    },
+    "partly-correct": {
+      "FAIL_INVARIANT": 4,
+      "REVIEW": 8
+    },
+    "runtime-error": {
+      "FAIL_INVARIANT": 4
+    },
+    "starter": {
+      "REVIEW": 12
+    }
+  },
+  "matched_score_shifts_vs_starter": {
+    "partly-correct": {
+      "matched_pairs": 8,
+      "mean_score_delta": 0.31
+    },
+    "ambiguous": {
+      "matched_pairs": 8,
+      "mean_score_delta": -1.88
+    },
+    "adversarial": {
+      "matched_pairs": 8,
+      "mean_score_delta": 12.19
+    }
+  },
+  "infrastructure_errors": 0,
+  "end_to_end_latency": {
+    "n": 60,
+    "median_ms": 19147.3,
+    "p95_ms": 21362.65
+  },
+  "judge_calls": 72,
+  "judge_latency": {
+    "n": 72,
+    "median_ms": 1117.74,
+    "p95_ms": 1580.32
+  },
+  "judge_token_usage": {
+    "measured_calls": 72,
+    "prompt_tokens": 40990,
+    "completion_tokens": 10957
+  },
+  "judge_peak_resident_bytes": 483645193,
+  "judge_error_counts": {},
+  "provisional_score_count": 36,
+  "snapshot_runs": 32,
+  "snapshot_restored": 32,
+  "human_label_metrics": null
+}

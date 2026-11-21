@@ -429,6 +429,8 @@ function App() {
   };
 
   const gradeStatus = result?.grade?.status;
+  const modelJudgments = result?.grade?.metrics?.judge_runs?.length
+    ? result.grade.judgments || [] : [];
   const checks = result?.grade?.deterministic_results || [];
   const deterministicPassed = checks.length > 0 && checks.every((check) => check.passed);
   const executionFailed = result?.execution && result.execution.status !== 'ok';
@@ -550,6 +552,16 @@ function App() {
                       {Number.isFinite(Number(result.execution.wall_seconds)) && <span><strong>{Number(result.execution.wall_seconds).toFixed(2)}s</strong> execution</span>}
                     </div>}
                     {gradeStatus && <div className={`grade-summary ${gradeStatus.toLowerCase()}`}><strong>{gradeStatus === 'REVIEW' && deterministicPassed ? 'Checks passed · human review pending' : `Grade: ${gradeStatus.replace('_', ' ')}`}</strong>{gradeStatus === 'REVIEW' && <span>Semantic decision requires review.</span>}</div>}
+                    {modelJudgments.length > 0 && <div className="semantic-summary">
+                      <strong>Local model assessment</strong>
+                      <span>{result.grade.model_id} · {modelJudgments.length} assessments</span>
+                      {result.grade.score != null && <span>Provisional hybrid score: {result.grade.score}/100</span>}
+                      <span>Model scores are not validated against human ratings.</span>
+                      <details><summary>Show rubric evidence</summary>{modelJudgments.map((judgment, index) =>
+                        <div className="semantic-judgment" key={index}><strong>Assessment {index + 1}</strong>
+                          {Object.entries(judgment.criteria || {}).map(([name, criterion]) =>
+                            <p key={name}><b>{name}: {criterion.level == null ? criterion.status : `${criterion.level}/4`}</b> — {criterion.evidence}</p>)}</div>)}</details>
+                    </div>}
                     {checks.length > 0 && <div className="check-list"><strong>{checks.filter(check => check.passed).length}/{checks.length} deterministic checks passed</strong>{checks.map((check, index) => <div key={index}><span className={check.passed ? 'check-pass' : 'check-fail'}>{check.passed ? 'PASS' : 'FAIL'}</span> {(check.check || check.name || `Check ${index + 1}`).replaceAll('_', ' ')}</div>)}</div>}
                     {result.execution?.snapshot?.restored && <p className="snapshot-note"><Icon name="refresh" size={14} /> VM snapshot restored successfully</p>}
                     {result.grade?.reason && <p className="grade-reason">{result.grade.reason}</p>}

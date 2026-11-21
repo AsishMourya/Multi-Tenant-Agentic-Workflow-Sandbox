@@ -1,0 +1,97 @@
+{
+  "scope": "10 simultaneous API requests across two tenants; server worker capacity remains configured separately",
+  "all_pass": true,
+  "queued_count": 8,
+  "results": [
+    {
+      "index": 0,
+      "tenant": "tenant-a",
+      "session": "tenant-a-3ca6c86560d8",
+      "queued": true,
+      "latency_seconds": 72.24,
+      "pass": true,
+      "grade": "REVIEW"
+    },
+    {
+      "index": 1,
+      "tenant": "tenant-b",
+      "session": "tenant-b-50e4b9e7e507",
+      "queued": true,
+      "latency_seconds": 95.99,
+      "pass": true,
+      "grade": "REVIEW"
+    },
+    {
+      "index": 2,
+      "tenant": "tenant-a",
+      "session": "tenant-a-9558da6074ad",
+      "queued": false,
+      "latency_seconds": 24.11,
+      "pass": true,
+      "grade": "REVIEW"
+    },
+    {
+      "index": 3,
+      "tenant": "tenant-b",
+      "session": "tenant-b-c9aac5db08ca",
+      "queued": true,
+      "latency_seconds": 48.15,
+      "pass": true,
+      "grade": "REVIEW"
+    },
+    {
+      "index": 4,
+      "tenant": "tenant-a",
+      "session": "tenant-a-4622edcf4005",
+      "queued": true,
+      "latency_seconds": 95.9,
+      "pass": true,
+      "grade": "REVIEW"
+    },
+    {
+      "index": 5,
+      "tenant": "tenant-b",
+      "session": "tenant-b-0c782e86a18e",
+      "queued": true,
+      "latency_seconds": 72.35,
+      "pass": true,
+      "grade": "REVIEW"
+    },
+    {
+      "index": 6,
+      "tenant": "tenant-a",
+      "session": "tenant-a-3d68151f8608",
+      "queued": true,
+      "latency_seconds": 48.23,
+      "pass": true,
+      "grade": "REVIEW"
+    },
+    {
+      "index": 7,
+      "tenant": "tenant-b",
+      "session": "tenant-b-e313c0e8c9a9",
+      "queued": true,
+      "latency_seconds": 121.84,
+      "pass": true,
+      "grade": "REVIEW"
+    },
+    {
+      "index": 8,
+      "tenant": "tenant-a",
+      "session": "tenant-a-0df39116a6dc",
+      "queued": true,
+      "latency_seconds": 121.92,
+      "pass": true,
+      "grade": "REVIEW"
+    },
+    {
+      "index": 9,
+      "tenant": "tenant-b",
+      "session": "tenant-b-418c037177b2",
+      "queued": false,
+      "latency_seconds": 24.2,
+      "pass": true,
+      "grade": "REVIEW"
+    }
+  ]
+}
